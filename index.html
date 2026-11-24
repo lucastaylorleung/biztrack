@@ -20,7 +20,6 @@
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    /* Custom subtle scrollbars */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -35,7 +34,6 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #94a3b8;
     }
-    /* Ensure Leaflet map stays below modals/drawers */
     .leaflet-pane,
     .leaflet-top,
     .leaflet-bottom {
@@ -50,7 +48,7 @@
 
   <!-- ==================== CUSTOM CONFIRMATION MODAL ==================== -->
   <div id="confirm-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6">
       <div class="flex items-start gap-4">
         <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
           <i data-lucide="alert-triangle" class="w-5 h-5"></i>
@@ -157,7 +155,6 @@
           </p>
 
           <button id="google-signin-btn" type="button" class="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-semibold text-sm transition shadow-md cursor-pointer">
-            <!-- Official Google G SVG -->
             <svg class="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
               <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
@@ -167,7 +164,6 @@
             <span>Continue with Google</span>
           </button>
 
-          <!-- Fallback notice if sandboxed preview blocks OAuth popups -->
           <div id="auth-error-box" class="hidden mt-4 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-2">
             <p id="auth-error-text" class="font-medium"></p>
             <button id="fallback-signin-btn" type="button" class="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition">
@@ -180,7 +176,6 @@
             <span>No credit card</span>
           </div>
 
-          <!-- Self-Host Firebase Setup & Demo Quick Actions -->
           <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
             <button type="button" onclick="openFirebaseSetupModal()" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition">
               <i data-lucide="cloud-cog" class="w-3.5 h-3.5"></i>
@@ -270,6 +265,10 @@
             <i data-lucide="users" class="w-4 h-4"></i>
             <span>Clients Directory</span>
           </button>
+          <button data-tab="services" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
+            <i data-lucide="tag" class="w-4 h-4"></i>
+            <span>Services &amp; Pricing</span>
+          </button>
           <button data-tab="calendar" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition">
             <i data-lucide="calendar" class="w-4 h-4"></i>
             <span>Availability Calendar</span>
@@ -308,7 +307,6 @@
         </div>
 
         <div class="flex items-center gap-3">
-          <!-- Tax Year Selector -->
           <div class="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">
             <i data-lucide="calendar-range" class="w-4 h-4 text-indigo-600"></i>
             <span class="text-xs font-medium text-slate-500">Tax Year:</span>
@@ -316,19 +314,16 @@
             </select>
           </div>
 
-          <!-- Tax Rate Settings Button -->
           <button onclick="openSettingsModal()" class="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition shadow-2xs" title="Mileage Deduction Rates">
             <i data-lucide="sliders-horizontal" class="w-4 h-4 text-slate-500"></i>
             <span>KM Rates</span>
           </button>
 
-          <!-- Self-Host Firebase Config Button -->
           <button onclick="openFirebaseSetupModal()" class="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition shadow-2xs" title="Configure Firebase for Self-Hosting">
             <i data-lucide="cloud-cog" class="w-4 h-4"></i>
             <span>Firebase URL Setup</span>
           </button>
 
-          <!-- Export Tax CSV Button -->
           <button onclick="openExportModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm shadow-indigo-200">
             <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
             <span>Export Tax CSV</span>
@@ -341,9 +336,7 @@
 
         <!-- ==================== TAB 1: DASHBOARD ==================== -->
         <section id="tab-dashboard" class="tab-panel space-y-6">
-          <!-- KPI Grid -->
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <!-- Collected Income -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Collected Income</span>
@@ -355,7 +348,6 @@
               <p id="kpi-collected-sub" class="text-xs text-emerald-600 font-medium mt-1">0 paid invoices</p>
             </div>
 
-            <!-- Outstanding / Unpaid -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Unpaid Invoices</span>
@@ -367,7 +359,6 @@
               <p id="kpi-unpaid-sub" class="text-xs text-slate-500 font-medium mt-1">0 awaiting payment</p>
             </div>
 
-            <!-- Total Expenses -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Expenses</span>
@@ -379,7 +370,6 @@
               <p id="kpi-expenses-sub" class="text-xs text-slate-500 font-medium mt-1">0 logged receipts</p>
             </div>
 
-            <!-- Net Business Income -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Net Profit</span>
@@ -391,7 +381,6 @@
               <p class="text-xs text-slate-500 font-medium mt-1">Collected minus expenses</p>
             </div>
 
-            <!-- Business KMs & CRA Deduction -->
             <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-5 text-white shadow-md shadow-indigo-200 sm:col-span-2 xl:col-span-1">
               <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold uppercase tracking-wider text-indigo-100">Tax Mileage</span>
@@ -404,9 +393,7 @@
             </div>
           </div>
 
-          <!-- Action Panels Grid -->
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Unpaid Invoices Quick Action List -->
             <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-2xs flex flex-col">
               <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -417,14 +404,10 @@
                   + Add Invoice
                 </button>
               </div>
-              <div id="dash-unpaid-list" class="divide-y divide-slate-100 p-2 flex-1">
-                <!-- Populated dynamically -->
-              </div>
+              <div id="dash-unpaid-list" class="divide-y divide-slate-100 p-2 flex-1"></div>
             </div>
 
-            <!-- Right Column: Upcoming Bookings & Recent Trips -->
             <div class="lg:col-span-5 space-y-6">
-              <!-- Upcoming Bookings -->
               <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs">
                 <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                   <h3 class="font-bold text-slate-900">Upcoming Bookings</h3>
@@ -433,7 +416,6 @@
                 <div id="dash-upcoming-list" class="divide-y divide-slate-100 p-2"></div>
               </div>
 
-              <!-- Recent Mileage Trips -->
               <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs">
                 <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                   <h3 class="font-bold text-slate-900">Recent Driving Trips</h3>
@@ -442,7 +424,6 @@
                 <div id="dash-trips-list" class="divide-y divide-slate-100 p-2"></div>
               </div>
 
-              <!-- Open Tasks -->
               <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs">
                 <div class="p-5 border-b border-slate-100 flex items-center justify-between">
                   <h3 class="font-bold text-slate-900">Open Tasks &amp; Follow-Ups</h3>
@@ -456,7 +437,6 @@
 
         <!-- ==================== TAB 2: MILEAGE (AUTO MAP) ==================== -->
         <section id="tab-mileage" class="tab-panel hidden space-y-6">
-          <!-- Home Base Address Bar -->
           <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-start sm:items-center gap-3 flex-1">
               <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
@@ -472,16 +452,13 @@
             </button>
           </div>
 
-          <!-- Route Calculator + Interactive Leaflet Map -->
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Route Form -->
             <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
               <div class="flex items-center justify-between">
                 <h3 class="font-bold text-slate-900 text-base">Automatic Route & KM Tracker</h3>
                 <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">Free OSRM Routing</span>
               </div>
 
-              <!-- Start Address -->
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="text-xs font-semibold text-slate-700">Start Address</label>
@@ -496,7 +473,6 @@
                 <input id="trip-start-input" type="text" placeholder="Enter start address..." class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
 
-              <!-- Quick Client Address Autofill -->
               <div>
                 <div class="flex items-center justify-between mb-1">
                   <label class="text-xs font-semibold text-slate-700">Destination Address</label>
@@ -507,13 +483,11 @@
                 <input id="trip-dest-input" type="text" placeholder="Enter client or destination address..." class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
 
-              <!-- Calculate Route Button -->
               <button id="calculate-route-btn" type="button" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm">
                 <i data-lucide="route" class="w-4 h-4"></i>
                 <span>Calculate Driving Route</span>
               </button>
 
-              <!-- Calculated Distance Box -->
               <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div class="flex items-center justify-between">
                   <div>
@@ -532,7 +506,6 @@
                 <p id="route-status-text" class="text-xs text-slate-500">Enter addresses and click Calculate Route, or type KMs manually.</p>
               </div>
 
-              <!-- Trip Metadata (Date, Client, Purpose) -->
               <form id="save-trip-form" class="space-y-3 pt-1">
                 <div class="grid grid-cols-2 gap-3">
                   <div>
@@ -556,13 +529,11 @@
               </form>
             </div>
 
-            <!-- Interactive Map -->
             <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-3 shadow-2xs flex flex-col min-h-[380px]">
               <div id="mileage-map" class="w-full flex-1 rounded-xl min-h-[360px] bg-slate-100"></div>
             </div>
           </div>
 
-          <!-- Mileage Log Table -->
           <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
@@ -592,7 +563,6 @@
 
         <!-- ==================== TAB 3: INCOME & INVOICES ==================== -->
         <section id="tab-income" class="tab-panel hidden space-y-6">
-          <!-- Add Income Form -->
           <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
             <h3 class="font-bold text-slate-900 text-base mb-4">Log Income / Client Booking</h3>
             <form id="income-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -603,7 +573,12 @@
                 </select>
               </div>
               <div class="lg:col-span-2">
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Service / Description</label>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-xs font-semibold text-slate-700">Service / Description</label>
+                  <select id="inc-service-preset" class="text-[11px] font-semibold text-indigo-600 bg-indigo-50 rounded-lg px-2 py-0.5 focus:outline-none cursor-pointer max-w-[185px]">
+                    <option value="">Pick saved service...</option>
+                  </select>
+                </div>
                 <input id="inc-service" type="text" required placeholder="e.g. Weekend Pet Sitting, Consultation" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
@@ -615,8 +590,22 @@
                 <input id="inc-end-date" type="date" class="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-700 mb-1">Amount ($)</label>
-                <input id="inc-amount" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Base Price ($)</label>
+                <input id="inc-base-price" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Discount (Optional)</label>
+                <div class="flex items-center">
+                  <input id="inc-discount-val" type="number" step="0.01" min="0" value="0" placeholder="0" class="w-full text-sm border border-slate-200 rounded-l-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  <select id="inc-discount-type" aria-label="Discount Type" class="text-xs font-bold bg-slate-100 border border-l-0 border-slate-200 rounded-r-xl px-2.5 py-2.5 text-slate-700 focus:outline-none cursor-pointer">
+                    <option value="amount">$</option>
+                    <option value="percent">%</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Final Total ($)</label>
+                <input id="inc-amount" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full text-sm font-extrabold text-indigo-700 bg-indigo-50/40 border border-indigo-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Payment Status</label>
@@ -653,7 +642,6 @@
             </form>
           </div>
 
-          <!-- Filter Pills & Income Table -->
           <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div class="flex items-center gap-2" id="income-filter-pills">
@@ -684,7 +672,6 @@
 
         <!-- ==================== TAB 4: EXPENSES ==================== -->
         <section id="tab-expenses" class="tab-panel hidden space-y-6">
-          <!-- Add Expense Form -->
           <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
             <h3 class="font-bold text-slate-900 text-base mb-4">Log Business Expense</h3>
             <form id="expense-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -724,10 +711,8 @@
             </form>
           </div>
 
-          <!-- Category Breakdown Cards -->
           <div id="expense-category-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div>
 
-          <!-- Expense Search & Table -->
           <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 class="font-bold text-slate-900">Itemized Expenses</h3>
@@ -766,14 +751,49 @@
             </button>
           </div>
 
-          <!-- Clients Grid -->
           <div id="clients-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+        </section>
+
+        <!-- ==================== TAB 5B: SERVICES & PRICING ==================== -->
+        <section id="tab-services" class="tab-panel hidden space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 id="service-form-title" class="font-bold text-slate-900 text-base">Add Service &amp; Standard Rate</h3>
+                <p class="text-xs text-slate-500">Saved services automatically fill prices when creating invoices.</p>
+              </div>
+              <button type="button" id="service-cancel-edit-btn" class="hidden px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200">
+                Cancel Edit
+              </button>
+            </div>
+            <form id="service-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+              <input type="hidden" id="service-edit-id" />
+              <div class="lg:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Service Name *</label>
+                <input id="service-name-input" type="text" required placeholder="e.g. 30-Min Drop-In Visit, Full Detail" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Standard Price ($) *</label>
+                <input id="service-price-input" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div class="lg:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Description / Notes (Optional)</label>
+                <input id="service-desc-input" type="text" placeholder="e.g. Includes travel within 15 km" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div class="flex items-end">
+                <button type="submit" id="service-submit-btn" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm">
+                  + Save Service
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
         </section>
 
         <!-- ==================== TAB 6: AVAILABILITY CALENDAR ==================== -->
         <section id="tab-calendar" class="tab-panel hidden space-y-6">
           <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Calendar Grid -->
             <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
                 <div class="flex items-center gap-3">
@@ -787,7 +807,6 @@
                   <button id="cal-today-btn" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Today</button>
                 </div>
 
-                <!-- Legend -->
                 <div class="flex flex-wrap items-center gap-3 text-xs font-medium">
                   <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-100 border border-emerald-400"></span> Free</span>
                   <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-indigo-500"></span> Booked</span>
@@ -795,16 +814,13 @@
                 </div>
               </div>
 
-              <!-- Day Headers -->
               <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                 <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
               </div>
 
-              <!-- Days Container -->
               <div id="calendar-days-grid" class="grid grid-cols-7 gap-1.5"></div>
             </div>
 
-            <!-- Selected Day Detail Panel -->
             <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between space-y-5">
               <div>
                 <div class="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -815,7 +831,6 @@
                   <span id="cal-selected-status-pill" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Free / Available</span>
                 </div>
 
-                <!-- Toggle Blocked Status -->
                 <div class="mt-4">
                   <button id="cal-toggle-block-btn" type="button" class="w-full py-2.5 px-4 rounded-xl text-sm font-semibold border transition flex items-center justify-center gap-2">
                     <i data-lucide="ban" class="w-4 h-4"></i>
@@ -823,7 +838,6 @@
                   </button>
                 </div>
 
-                <!-- Bookings on this day -->
                 <div class="mt-5">
                   <h5 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">Bookings on this Date</h5>
                   <div id="cal-day-bookings" class="space-y-2"></div>
@@ -839,7 +853,6 @@
 
         <!-- ==================== TAB 7: TASKS & FOLLOW-UPS ==================== -->
         <section id="tab-tasks" class="tab-panel hidden space-y-6">
-          <!-- Add Task Form -->
           <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
             <h3 class="font-bold text-slate-900 text-base mb-4">Add Business Task or Client Follow-Up</h3>
             <form id="task-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
@@ -873,7 +886,6 @@
             </form>
           </div>
 
-          <!-- Task Filters & Checklist -->
           <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div class="flex items-center gap-2" id="task-filter-pills">
@@ -1043,7 +1055,7 @@
             <li>Create a free <strong>Spark Plan</strong> project at <span class="font-semibold text-indigo-600">console.firebase.google.com</span>.</li>
             <li>Go to <strong>Authentication &gt; Sign-in method</strong> and enable <strong>Google</strong> (also add your live domain under <em>Settings &gt; Authorized domains</em>).</li>
             <li>Go to <strong>Firestore Database</strong> and create a database in <strong>Production mode</strong> with rule <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-[11px]">allow read, write: if request.auth.uid == userId;</code>.</li>
-            <li>In <strong>Project Settings &gt; Your apps &gt; Web (&lt;/&gt;)</strong>, copy your <code class="bg-white px-1 py-0.5 rounded border border-slate-200">firebaseConfig</code> and paste it below.</li>
+            <li>In <strong>Project Settings &gt; Your apps &gt; Web (&lt;/&gt;)</strong>, copy your <code class="bg-white px-1.5 py-0.5 rounded border border-slate-200">firebaseConfig</code> and paste it below.</li>
           </ol>
         </div>
 
@@ -1115,17 +1127,16 @@
       onSnapshot
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Optional hardcoded config for self-hosting if desired (leave null to use UI setup modal or preview environment)
-    const CUSTOM_FIREBASE_CONFIG = const firebaseConfig = {
-  apiKey: "AIzaSyBkQN41noIKt7dQnJwpQnmGu63FUQjvHF4",
-  authDomain: "biztrack-3f3d3.firebaseapp.com",
-  projectId: "biztrack-3f3d3",
-  storageBucket: "biztrack-3f3d3.firebasestorage.app",
-  messagingSenderId: "368157787211",
-  appId: "1:368157787211:web:71a9bdf9aaebca8192b9ce"
-};
+    // Your permanent self-hosted Firebase configuration
+    const CUSTOM_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBkQN41noIKt7dQnJwpQnmGu63FUQjvHF4",
+      authDomain: "biztrack-3f3d3.firebaseapp.com",
+      projectId: "biztrack-3f3d3",
+      storageBucket: "biztrack-3f3d3.firebasestorage.app",
+      messagingSenderId: "368157787211",
+      appId: "1:368157787211:web:71a9bdf9aaebca8192b9ce"
+    };
 
-    // Initialize Lucide icons initially
     lucide.createIcons();
 
     // ==================== 1. FIREBASE CONFIGURATION ====================
@@ -1142,7 +1153,6 @@
           const parsed = JSON.parse(decodeURIComponent(escape(window.atob(base64))));
           if (parsed && parsed.apiKey && parsed.projectId) {
             window.localStorage.setItem(STORAGE_KEY_FB, JSON.stringify(parsed));
-            // Clean the hash from the URL bar after saving to localStorage
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
             return parsed;
           }
@@ -1177,8 +1187,6 @@
       configSourceMode = 'saved-custom';
     }
 
-    // Use standard root users/{uid}/{col} when self-hosted with user's own Firebase,
-    // or /artifacts/{appId}/users/{uid}/{col} inside the preview sandbox.
     const useSelfHostRootPath = configSourceMode === 'hardcoded-custom' || configSourceMode === 'saved-custom';
     const isFirebaseConfigured = configSourceMode !== 'demo-fallback';
 
@@ -1191,7 +1199,6 @@
       auth = getAuth(app);
       db = getFirestore(app);
 
-      // Handle redirect return if signInWithRedirect was triggered
       getRedirectResult(auth).catch((err) => {
         if (err && err.code) {
           console.warn('Redirect sign-in notice:', err.code);
@@ -1216,6 +1223,7 @@
       expenses: [],
       trips: [],
       tasks: [],
+      services: [],
       blockedDates: {},
       settings: {
         homeBase: '',
@@ -1319,7 +1327,6 @@
         if (direct && direct.apiKey && direct.projectId) return direct;
       } catch (_) {}
 
-      // Extract individual keys safely even if the user pasted the entire Firebase SDK import block
       const keys = [
         'apiKey',
         'authDomain',
@@ -1537,6 +1544,7 @@
         expenses: state.expenses,
         trips: state.trips,
         tasks: state.tasks,
+        services: state.services,
         blockedDates: state.blockedDates,
         settings: state.settings
       };
@@ -1553,6 +1561,7 @@
           state.expenses = parsed.expenses || [];
           state.trips = parsed.trips || [];
           state.tasks = parsed.tasks || [];
+          state.services = parsed.services || [];
           state.blockedDates = parsed.blockedDates || {};
           state.settings = { ...state.settings, ...(parsed.settings || {}) };
         }
@@ -1563,7 +1572,7 @@
       state.unsubscribers.forEach((unsub) => unsub());
       state.unsubscribers = [];
 
-      const collections = ['clients', 'income', 'expenses', 'trips', 'tasks'];
+      const collections = ['clients', 'income', 'expenses', 'trips', 'tasks', 'services'];
       collections.forEach((colName) => {
         const unsub = onSnapshot(
           getUserCollectionRef(uid, colName),
@@ -1659,6 +1668,7 @@
       income: { title: 'Income & Invoices', sub: 'Track client payments, unpaid balances, and booking dates.' },
       expenses: { title: 'Business Expenses', sub: 'Categorize tax-deductible receipts and vendor expenses.' },
       clients: { title: 'Clients Directory', sub: 'Manage customer contact details, addresses, and service notes.' },
+      services: { title: 'Services & Pricing', sub: 'Create your service menu and standard rates for 1-click invoicing.' },
       calendar: { title: 'Availability Calendar', sub: 'Track booked days, free days, and manually blocked off dates.' },
       tasks: { title: 'Tasks & Follow-Ups', sub: 'Stay on top of invoice reminders, prep work, and client to-dos.' }
     };
@@ -1718,7 +1728,6 @@
       });
     }
 
-    // Set default dates on forms
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('trip-date-input').value = todayStr;
     document.getElementById('inc-start-date').value = todayStr;
@@ -1895,7 +1904,7 @@
       showToast('Trip saved to mileage log!');
     });
 
-    // ==================== 10. INCOME, EXPENSES, CLIENTS, CALENDAR & TASKS HANDLERS ====================
+    // ==================== 10. INCOME, EXPENSES, CLIENTS, SERVICES, CALENDAR & TASKS HANDLERS ====================
     async function computeDrivingDistanceKm(startAddr, destAddr) {
       const [startPt, destPt] = await Promise.all([geocodeAddress(startAddr), geocodeAddress(destAddr)]);
       const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lon},${startPt.lat};${destPt.lon},${destPt.lat}?overview=false`;
@@ -1930,6 +1939,32 @@
     }
 
     document.getElementById('inc-client').addEventListener('change', updateIncomeAutoMileageHint);
+
+    function recalculateIncomeTotal() {
+      const base = parseFloat(document.getElementById('inc-base-price').value) || 0;
+      const discVal = parseFloat(document.getElementById('inc-discount-val').value) || 0;
+      const discType = document.getElementById('inc-discount-type').value;
+      let finalTotal = base;
+      if (discType === 'percent') {
+        finalTotal = base - (base * Math.min(100, Math.max(0, discVal))) / 100;
+      } else {
+        finalTotal = base - Math.max(0, discVal);
+      }
+      document.getElementById('inc-amount').value = Math.max(0, finalTotal).toFixed(2);
+    }
+
+    document.getElementById('inc-base-price').addEventListener('input', recalculateIncomeTotal);
+    document.getElementById('inc-discount-val').addEventListener('input', recalculateIncomeTotal);
+    document.getElementById('inc-discount-type').addEventListener('change', recalculateIncomeTotal);
+
+    document.getElementById('inc-service-preset').addEventListener('change', (e) => {
+      const srv = state.services.find((s) => s.id === e.target.value);
+      if (srv) {
+        document.getElementById('inc-service').value = srv.name;
+        document.getElementById('inc-base-price').value = Number(srv.price || 0).toFixed(2);
+        recalculateIncomeTotal();
+      }
+    });
 
     window.quickAutoLogClientTrip = async function(clientId) {
       const clientObj = state.clients.find((c) => c.id === clientId);
@@ -1978,13 +2013,21 @@
       submitBtn.textContent = 'Saving...';
 
       try {
+        const basePrice = parseFloat(document.getElementById('inc-base-price').value) || 0;
+        const discountVal = parseFloat(document.getElementById('inc-discount-val').value) || 0;
+        const discountType = document.getElementById('inc-discount-type').value;
+        const finalAmount = parseFloat(document.getElementById('inc-amount').value) || 0;
+
         await dbAdd('income', {
           clientId,
           clientName: clientObj ? clientObj.name : 'Client',
           service,
           startDate,
           endDate,
-          amount: parseFloat(document.getElementById('inc-amount').value) || 0,
+          basePrice,
+          discountVal,
+          discountType,
+          amount: finalAmount,
           status: document.getElementById('inc-status').value,
           method: document.getElementById('inc-method').value,
           createdAt: new Date().toISOString()
@@ -2020,6 +2063,7 @@
 
         e.target.reset();
         document.getElementById('inc-start-date').value = todayStr;
+        document.getElementById('inc-discount-val').value = '0';
         document.getElementById('inc-auto-mileage-check').checked = true;
         document.getElementById('inc-auto-roundtrip-check').checked = true;
         updateIncomeAutoMileageHint();
@@ -2027,6 +2071,178 @@
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = '+ Save Income Entry';
+      }
+    });
+
+    window.toggleInvoiceStatus = async function(id, currentStatus) {
+      const nextStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+      await dbUpdate('income', id, { status: nextStatus });
+      showToast(`Invoice marked as ${nextStatus}.`);
+    };
+
+    document.querySelectorAll('.inc-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.incomeFilter = btn.dataset.filter;
+        document.querySelectorAll('.inc-filter-btn').forEach((b) => {
+          const active = b.dataset.filter === state.incomeFilter;
+          b.className = `inc-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold ${
+            active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`;
+        });
+        renderIncomeView();
+      });
+    });
+
+    // Expenses Handlers
+    document.getElementById('expense-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await dbAdd('expenses', {
+        date: document.getElementById('exp-date').value,
+        vendor: document.getElementById('exp-vendor').value.trim(),
+        category: document.getElementById('exp-category').value,
+        amount: parseFloat(document.getElementById('exp-amount').value) || 0,
+        notes: document.getElementById('exp-notes').value.trim(),
+        createdAt: new Date().toISOString()
+      });
+      e.target.reset();
+      document.getElementById('exp-date').value = todayStr;
+      showToast('Expense logged!');
+    });
+
+    document.getElementById('exp-search-input').addEventListener('input', (e) => {
+      state.expenseSearch = e.target.value.trim().toLowerCase();
+      renderExpensesView();
+    });
+
+    // Clients Modal & Form Handlers
+    window.openClientModal = function(clientId = null) {
+      const modal = document.getElementById('client-modal');
+      const title = document.getElementById('client-modal-title');
+      document.getElementById('client-form').reset();
+      document.getElementById('client-edit-id').value = '';
+
+      if (clientId) {
+        const c = state.clients.find((item) => item.id === clientId);
+        if (c) {
+          title.textContent = 'Edit Client';
+          document.getElementById('client-edit-id').value = c.id;
+          document.getElementById('client-name-input').value = c.name || '';
+          document.getElementById('client-email-input').value = c.email || '';
+          document.getElementById('client-phone-input').value = c.phone || '';
+          document.getElementById('client-address-input').value = c.address || '';
+          document.getElementById('client-notes-input').value = c.notes || '';
+        }
+      } else {
+        title.textContent = 'Add New Client';
+      }
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    };
+
+    window.closeClientModal = function() {
+      document.getElementById('client-modal').classList.add('hidden');
+    };
+
+    document.getElementById('client-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('client-edit-id').value;
+      const payload = {
+        name: document.getElementById('client-name-input').value.trim(),
+        email: document.getElementById('client-email-input').value.trim(),
+        phone: document.getElementById('client-phone-input').value.trim(),
+        address: document.getElementById('client-address-input').value.trim(),
+        notes: document.getElementById('client-notes-input').value.trim()
+      };
+      if (editId) {
+        await dbUpdate('clients', editId, payload);
+        showToast('Client updated!');
+      } else {
+        await dbAdd('clients', { ...payload, createdAt: new Date().toISOString() });
+        showToast('New client added!');
+      }
+      closeClientModal();
+    });
+
+    // Services & Pricing Handlers
+    function resetServiceForm() {
+      document.getElementById('service-form').reset();
+      document.getElementById('service-edit-id').value = '';
+      document.getElementById('service-form-title').textContent = 'Add Service & Standard Rate';
+      document.getElementById('service-submit-btn').textContent = '+ Save Service';
+      document.getElementById('service-cancel-edit-btn').classList.add('hidden');
+    }
+
+    document.getElementById('service-cancel-edit-btn').addEventListener('click', resetServiceForm);
+
+    window.editServiceItem = function(id) {
+      const srv = state.services.find((s) => s.id === id);
+      if (!srv) return;
+      document.getElementById('service-edit-id').value = srv.id;
+      document.getElementById('service-name-input').value = srv.name || '';
+      document.getElementById('service-price-input').value = Number(srv.price || 0).toFixed(2);
+      document.getElementById('service-desc-input').value = srv.description || '';
+      document.getElementById('service-form-title').textContent = 'Edit Service & Rate';
+      document.getElementById('service-submit-btn').textContent = 'Update Service';
+      document.getElementById('service-cancel-edit-btn').classList.remove('hidden');
+      document.getElementById('service-name-input').focus();
+    };
+
+    document.getElementById('service-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('service-edit-id').value;
+      const payload = {
+        name: document.getElementById('service-name-input').value.trim(),
+        price: parseFloat(document.getElementById('service-price-input').value) || 0,
+        description: document.getElementById('service-desc-input').value.trim()
+      };
+      if (editId) {
+        await dbUpdate('services', editId, payload);
+        showToast('Service updated!');
+      } else {
+        await dbAdd('services', { ...payload, createdAt: new Date().toISOString() });
+        showToast('Service saved!');
+      }
+      resetServiceForm();
+    });
+
+    // Calendar Navigation & Block Toggle
+    document.getElementById('cal-prev-btn').addEventListener('click', () => {
+      state.calMonth--;
+      if (state.calMonth < 0) {
+        state.calMonth = 11;
+        state.calYear--;
+      }
+      renderCalendarView();
+      lucide.createIcons();
+    });
+
+    document.getElementById('cal-next-btn').addEventListener('click', () => {
+      state.calMonth++;
+      if (state.calMonth > 11) {
+        state.calMonth = 0;
+        state.calYear++;
+      }
+      renderCalendarView();
+      lucide.createIcons();
+    });
+
+    document.getElementById('cal-today-btn').addEventListener('click', () => {
+      const now = new Date();
+      state.calYear = now.getFullYear();
+      state.calMonth = now.getMonth();
+      state.calSelectedDate = now.toISOString().split('T')[0];
+      renderCalendarView();
+      lucide.createIcons();
+    });
+
+    document.getElementById('cal-toggle-block-btn').addEventListener('click', async () => {
+      const dateStr = state.calSelectedDate;
+      if (state.blockedDates[dateStr]) {
+        await dbDelete('blockedDates', dateStr);
+        showToast(`${dateStr} marked as Free / Available.`);
+      } else {
+        await dbSet('blockedDates', dateStr, { blocked: true, updatedAt: new Date().toISOString() });
+        showToast(`${dateStr} marked as Unavailable.`);
       }
     });
 
@@ -2108,6 +2324,12 @@
       document.getElementById('trip-client-select').innerHTML = `<option value="">General / No Client</option>${baseOptions}`;
       document.getElementById('trip-client-autofill').innerHTML = `<option value="">Autofill from Client...</option>${baseOptions}`;
       document.getElementById('task-client-select').innerHTML = `<option value="">General / Internal</option>${baseOptions}`;
+
+      const sortedServices = [...state.services].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const srvOptions = sortedServices
+        .map((s) => `<option value="${s.id}">${escapeHTML(s.name)} (${formatCurrency(s.price)})</option>`)
+        .join('');
+      document.getElementById('inc-service-preset').innerHTML = `<option value="">Pick saved service...</option>${srvOptions}`;
     }
 
     function renderDashboardView() {
@@ -2135,7 +2357,6 @@
       document.getElementById('kpi-kms').textContent = `${totalKm.toFixed(1)} km`;
       document.getElementById('kpi-deduction').textContent = `Est. ${formatCurrency(estDeduction)} CRA deduction`;
 
-      // Sidebar badges
       const unpaidBadge = document.getElementById('nav-unpaid-badge');
       if (unpaidItems.length > 0) {
         unpaidBadge.textContent = unpaidItems.length;
@@ -2153,7 +2374,6 @@
         tasksBadge.classList.add('hidden');
       }
 
-      // Unpaid list
       const unpaidListEl = document.getElementById('dash-unpaid-list');
       if (!unpaidItems.length) {
         unpaidListEl.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">All invoices for ${state.selectedYear} are paid!</div>`;
@@ -2177,7 +2397,6 @@
           .join('');
       }
 
-      // Upcoming Bookings
       const upcomingEl = document.getElementById('dash-upcoming-list');
       const upcoming = state.income
         .filter((i) => (i.endDate || i.startDate) >= todayStr)
@@ -2199,7 +2418,6 @@
           .join('');
       }
 
-      // Recent Trips
       const tripsEl = document.getElementById('dash-trips-list');
       const recentTrips = [...yrTrips].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 4);
       if (!recentTrips.length) {
@@ -2218,7 +2436,6 @@
           .join('');
       }
 
-      // Open Tasks
       const dashTasksEl = document.getElementById('dash-tasks-list');
       const topTasks = openTasks.slice(0, 4);
       if (!topTasks.length) {
@@ -2286,13 +2503,17 @@
         .map((i) => {
           const isPaid = i.status === 'Paid';
           const dateLabel = i.endDate && i.endDate !== i.startDate ? `${i.startDate} → ${i.endDate}` : i.startDate;
+          const hasDiscount = Number(i.discountVal) > 0;
+          const discountBadge = hasDiscount
+            ? `<span class="block text-[11px] font-semibold text-emerald-600">-${i.discountType === 'percent' ? `${Number(i.discountVal)}%` : formatCurrency(i.discountVal)} discount</span>`
+            : '';
           return `
             <tr class="hover:bg-slate-50">
               <td class="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap">${escapeHTML(dateLabel)}</td>
               <td class="py-3 px-4 font-bold text-slate-900">${escapeHTML(i.clientName)}</td>
               <td class="py-3 px-4 text-slate-600">${escapeHTML(i.service)}</td>
               <td class="py-3 px-4 text-xs text-slate-500">${escapeHTML(i.method)}</td>
-              <td class="py-3 px-4 text-right font-extrabold text-slate-900">${formatCurrency(i.amount)}</td>
+              <td class="py-3 px-4 text-right font-extrabold text-slate-900">${formatCurrency(i.amount)}${discountBadge}</td>
               <td class="py-3 px-4 text-center">
                 <button onclick="toggleInvoiceStatus('${i.id}', '${i.status}')" class="px-3 py-1 rounded-full text-xs font-bold transition ${
                   isPaid ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
@@ -2314,7 +2535,6 @@
     function renderExpensesView() {
       const yrExpenses = filterByTaxYear(state.expenses, 'date').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-      // Category rollup
       const catTotals = {};
       yrExpenses.forEach((e) => {
         catTotals[e.category] = (catTotals[e.category] || 0) + (Number(e.amount) || 0);
@@ -2376,6 +2596,12 @@
                   ${owing > 0 ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Owes ${formatCurrency(owing)}</span>` : `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">Paid Up</span>`}
                 </div>
                 <div class="mt-3 space-y-1.5 text-xs text-slate-600">
+                  ${c.email ? `<p class="flex items-center gap-2"><i data-lucide="mail" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.email)}</p>` : ''}
+                  ${c.phone ? `<p class="flex items-center gap-2"><i data-lucide="phone" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.phone)}</p>` : ''}
+                  ${c.address ? `<p class="flex items-start gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></i> <span>${escapeHTML(c.address)}</span></p>` : ''}
+                  ${c.notes ? `<p class="mt-2 p-2.5 rounded-xl bg-slate-50 text-slate-500 italic">${escapeHTML(c.notes)}</p>` : ''}
+                </div>
+              </div>
               <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button onclick="quickAutoLogClientTrip('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1" title="Auto-calculate & log round trip from Home Base">
                   <i data-lucide="car" class="w-3.5 h-3.5"></i>
@@ -2391,6 +2617,51 @@
         })
         .join('');
     }
+
+    function renderServicesView() {
+      const grid = document.getElementById('services-grid');
+      if (!grid) return;
+      if (!state.services.length) {
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">No services added yet. Add your first service and price above to autofill invoices!</div>`;
+        return;
+      }
+      const sorted = [...state.services].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      grid.innerHTML = sorted
+        .map((s) => `
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <h4 class="font-bold text-slate-900 text-base">${escapeHTML(s.name)}</h4>
+                <span class="px-3 py-1 rounded-xl text-sm font-extrabold bg-indigo-50 text-indigo-700 shrink-0">${formatCurrency(s.price)}</span>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">${s.description ? escapeHTML(s.description) : 'No description provided.'}</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+              <button onclick="useServiceOnInvoice('${s.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                <span>Invoice This</span>
+              </button>
+              <div class="flex items-center gap-1.5">
+                <button onclick="editServiceItem('${s.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Edit</button>
+                <button onclick="deleteRecord('services', '${s.id}', 'service')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
+              </div>
+            </div>
+          </div>
+        `)
+        .join('');
+    }
+
+    window.useServiceOnInvoice = function(serviceId) {
+      const srv = state.services.find((s) => s.id === serviceId);
+      if (!srv) return;
+      switchTab('income');
+      document.getElementById('inc-service-preset').value = srv.id;
+      document.getElementById('inc-service').value = srv.name;
+      document.getElementById('inc-base-price').value = Number(srv.price || 0).toFixed(2);
+      document.getElementById('inc-discount-val').value = '0';
+      recalculateIncomeTotal();
+      showToast(`Loaded "${srv.name}" (${formatCurrency(srv.price)}) onto invoice!`);
+    };
 
     function renderCalendarView() {
       const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -2429,7 +2700,6 @@
       }
       grid.innerHTML = html;
 
-      // Update selected date sidebar
       const sel = state.calSelectedDate;
       document.getElementById('cal-selected-date-label').textContent = sel;
       const isSelBlocked = Boolean(state.blockedDates[sel]);
@@ -2526,6 +2796,7 @@
       renderIncomeView();
       renderExpensesView();
       renderClientsView();
+      renderServicesView();
       renderCalendarView();
       renderTasksView();
       lucide.createIcons();
