@@ -634,8 +634,19 @@
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div class="lg:col-span-2 flex items-end">
-                <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm">
+              <div class="sm:col-span-2 lg:col-span-4 flex flex-col justify-center bg-indigo-50/70 border border-indigo-100 rounded-xl px-3.5 py-2.5">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input id="inc-auto-mileage-check" type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                  <span class="text-xs font-bold text-slate-800">Auto-create driving mileage trip from Home Base to Client</span>
+                  <span class="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded-lg border border-indigo-200">
+                    <input id="inc-auto-roundtrip-check" type="checkbox" checked class="w-3.5 h-3.5 text-indigo-600 rounded" />
+                    Round Trip (×2)
+                  </span>
+                </label>
+                <p id="inc-auto-mileage-hint" class="text-[11px] text-slate-500 mt-1 pl-6">Select a client with a saved address &amp; set your Home Base to log KMs automatically.</p>
+              </div>
+              <div class="sm:col-span-2 lg:col-span-6 flex items-center justify-end">
+                <button type="submit" id="inc-submit-btn" class="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition shadow-sm">
                   + Save Income Entry
                 </button>
               </div>
@@ -1056,9 +1067,15 @@
           </div>
 
           <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
-            <button type="button" id="clear-firebase-config-btn" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
-              Reset to Default
-            </button>
+            <div class="flex items-center gap-2">
+              <button type="button" id="clear-firebase-config-btn" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
+                Reset to Default
+              </button>
+              <button type="button" id="copy-magic-fb-link-btn" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition flex items-center gap-1.5">
+                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+                <span>Copy Phone / Device Link</span>
+              </button>
+            </div>
             <div class="flex items-center gap-2">
               <button type="button" onclick="closeFirebaseSetupModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200">
                 Cancel
@@ -1099,7 +1116,14 @@
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Optional hardcoded config for self-hosting if desired (leave null to use UI setup modal or preview environment)
-    const CUSTOM_FIREBASE_CONFIG = null;
+    const CUSTOM_FIREBASE_CONFIG = const firebaseConfig = {
+  apiKey: "AIzaSyBkQN41noIKt7dQnJwpQnmGu63FUQjvHF4",
+  authDomain: "biztrack-3f3d3.firebaseapp.com",
+  projectId: "biztrack-3f3d3",
+  storageBucket: "biztrack-3f3d3.firebasestorage.app",
+  messagingSenderId: "368157787211",
+  appId: "1:368157787211:web:71a9bdf9aaebca8192b9ce"
+};
 
     // Initialize Lucide icons initially
     lucide.createIcons();
@@ -1109,7 +1133,27 @@
     const hasInjectedPreviewConfig = typeof __firebase_config !== 'undefined' && Boolean(__firebase_config);
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+    function loadMagicLinkFirebaseConfig() {
+      try {
+        const hash = window.location.hash || '';
+        const match = hash.match(/fb=([A-Za-z0-9+/=_-]+)/);
+        if (match && match[1]) {
+          const base64 = match[1].replace(/-/g, '+').replace(/_/g, '/');
+          const parsed = JSON.parse(decodeURIComponent(escape(window.atob(base64))));
+          if (parsed && parsed.apiKey && parsed.projectId) {
+            window.localStorage.setItem(STORAGE_KEY_FB, JSON.stringify(parsed));
+            // Clean the hash from the URL bar after saving to localStorage
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            return parsed;
+          }
+        }
+      } catch (_) {}
+      return null;
+    }
+
     function loadSavedCustomFirebaseConfig() {
+      const fromMagicLink = loadMagicLinkFirebaseConfig();
+      if (fromMagicLink) return fromMagicLink;
       try {
         const raw = window.localStorage.getItem(STORAGE_KEY_FB);
         return raw ? JSON.parse(raw) : null;
@@ -1271,22 +1315,34 @@
       const cleaned = rawText.trim();
       if (!cleaned) throw new Error('Please paste your firebaseConfig object.');
       try {
-        return JSON.parse(cleaned);
-      } catch (_) {
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        if (!match) throw new Error('Could not find a valid { ... } configuration object.');
-        const jsonLike = match[0]
-          .replace(/\/\/.*$/gm, '')
-          .replace(/\/\*[\s\S]*?\*\//g, '')
-          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
-          .replace(/'/g, '"')
-          .replace(/,\s*}/g, '}');
-        const parsed = JSON.parse(jsonLike);
-        if (!parsed.apiKey || !parsed.projectId) {
-          throw new Error('Config must include at least apiKey and projectId.');
+        const direct = JSON.parse(cleaned);
+        if (direct && direct.apiKey && direct.projectId) return direct;
+      } catch (_) {}
+
+      // Extract individual keys safely even if the user pasted the entire Firebase SDK import block
+      const keys = [
+        'apiKey',
+        'authDomain',
+        'databaseURL',
+        'projectId',
+        'storageBucket',
+        'messagingSenderId',
+        'appId',
+        'measurementId'
+      ];
+      const extracted = {};
+      keys.forEach((key) => {
+        const regex = new RegExp(`["']?${key}["']?\\s*:\\s*["']([^"']+)["']`);
+        const match = cleaned.match(regex);
+        if (match && match[1]) {
+          extracted[key] = match[1].trim();
         }
-        return parsed;
+      });
+
+      if (!extracted.apiKey || !extracted.projectId) {
+        throw new Error('Could not find apiKey and projectId. Please paste your Firebase Web App config.');
       }
+      return extracted;
     }
 
     // ==================== 5. AUTH INITIALIZATION & FALLBACK GUARD ====================
@@ -1369,6 +1425,33 @@
       window.localStorage.removeItem(STORAGE_KEY_FB);
       showToast('Custom Firebase config cleared. Reloading...', 'info');
       setTimeout(() => window.location.reload(), 600);
+    });
+
+    document.getElementById('copy-magic-fb-link-btn').addEventListener('click', () => {
+      try {
+        const raw = document.getElementById('firebase-config-textarea').value.trim();
+        const cfg = raw ? parseFirebaseConfigInput(raw) : savedCustomConfig || CUSTOM_FIREBASE_CONFIG;
+        if (!cfg || !cfg.apiKey) {
+          showToast('Paste and save your Firebase config first.', 'error');
+          return;
+        }
+        const encoded = window.btoa(unescape(encodeURIComponent(JSON.stringify(cfg))))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+        const baseUrl = window.location.origin + window.location.pathname;
+        const magicUrl = `${baseUrl}#fb=${encoded}`;
+
+        const tempInput = document.createElement('input');
+        tempInput.value = magicUrl;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        showToast('Magic device link copied! Open it once on your phone to auto-connect.');
+      } catch (err) {
+        showToast(err.message || 'Could not generate link.', 'error');
+      }
     });
 
     // ==================== 6. SIGN-IN & SIGN-OUT HANDLERS ====================
@@ -1813,150 +1896,137 @@
     });
 
     // ==================== 10. INCOME, EXPENSES, CLIENTS, CALENDAR & TASKS HANDLERS ====================
-    document.getElementById('income-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    async function computeDrivingDistanceKm(startAddr, destAddr) {
+      const [startPt, destPt] = await Promise.all([geocodeAddress(startAddr), geocodeAddress(destAddr)]);
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lon},${startPt.lat};${destPt.lon},${destPt.lat}?overview=false`;
+      const routeRes = await fetch(osrmUrl);
+      const routeData = await routeRes.json();
+      if (!routeData.routes || !routeData.routes.length) {
+        throw new Error('No driving route found between addresses.');
+      }
+      return routeData.routes[0].distance / 1000;
+    }
+
+    function updateIncomeAutoMileageHint() {
+      const hintEl = document.getElementById('inc-auto-mileage-hint');
+      if (!hintEl) return;
       const clientId = document.getElementById('inc-client').value;
       const clientObj = state.clients.find((c) => c.id === clientId);
+      const homeBase = (document.getElementById('home-base-input').value || state.settings.homeBase || '').trim();
+
+      if (!clientObj) {
+        hintEl.textContent = 'Select a client with a saved address & set your Home Base to log KMs automatically.';
+        return;
+      }
+      if (!homeBase) {
+        hintEl.innerHTML = `<span class="text-amber-700 font-semibold">Tip:</span> Set your Home Base address in the Mileage tab to auto-calculate KMs to ${escapeHTML(clientObj.name)}.`;
+        return;
+      }
+      if (!clientObj.address) {
+        hintEl.innerHTML = `<span class="text-amber-700 font-semibold">Note:</span> ${escapeHTML(clientObj.name)} has no saved street address yet (add one in Clients).`;
+        return;
+      }
+      hintEl.innerHTML = `Will auto-route: <strong>${escapeHTML(homeBase)}</strong> → <strong>${escapeHTML(clientObj.address)}</strong>`;
+    }
+
+    document.getElementById('inc-client').addEventListener('change', updateIncomeAutoMileageHint);
+
+    window.quickAutoLogClientTrip = async function(clientId) {
+      const clientObj = state.clients.find((c) => c.id === clientId);
+      const homeBase = (document.getElementById('home-base-input').value || state.settings.homeBase || '').trim();
+      if (!clientObj) return;
+      if (!homeBase || !clientObj.address) {
+        switchTab('mileage');
+        if (clientObj.address) document.getElementById('trip-dest-input').value = clientObj.address;
+        document.getElementById('trip-client-select').value = clientObj.id;
+        showToast(!homeBase ? 'Set your Home Base address first.' : `Add an address for ${clientObj.name} first.`, 'info');
+        return;
+      }
+      showToast(`Calculating route to ${clientObj.name}...`, 'info');
+      try {
+        const oneWayKm = await computeDrivingDistanceKm(homeBase, clientObj.address);
+        const totalKm = Number((oneWayKm * 2).toFixed(1));
+        await dbAdd('trips', {
+          date: todayStr,
+          startAddress: homeBase,
+          destAddress: clientObj.address,
+          distanceKm: totalKm,
+          roundTrip: true,
+          clientId: clientObj.id,
+          clientName: clientObj.name,
+          purpose: `Client visit — ${clientObj.name}`,
+          createdAt: new Date().toISOString()
+        });
+        showToast(`Logged ${totalKm} km round trip for ${clientObj.name}!`);
+      } catch (err) {
+        showToast(err.message || 'Could not auto-calculate route.', 'error');
+      }
+    };
+
+    document.getElementById('income-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('inc-submit-btn');
+      const clientId = document.getElementById('inc-client').value;
+      const clientObj = state.clients.find((c) => c.id === clientId);
+      const service = document.getElementById('inc-service').value.trim();
       const startDate = document.getElementById('inc-start-date').value;
       const endDate = document.getElementById('inc-end-date').value || startDate;
+      const autoMileage = document.getElementById('inc-auto-mileage-check').checked;
+      const autoRoundTrip = document.getElementById('inc-auto-roundtrip-check').checked;
 
-      await dbAdd('income', {
-        clientId,
-        clientName: clientObj ? clientObj.name : 'Client',
-        service: document.getElementById('inc-service').value.trim(),
-        startDate,
-        endDate,
-        amount: parseFloat(document.getElementById('inc-amount').value) || 0,
-        status: document.getElementById('inc-status').value,
-        method: document.getElementById('inc-method').value,
-        createdAt: new Date().toISOString()
-      });
-      e.target.reset();
-      document.getElementById('inc-start-date').value = todayStr;
-      showToast('Income entry added!');
-    });
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
 
-    document.querySelectorAll('.inc-filter-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.incomeFilter = btn.dataset.filter;
-        document.querySelectorAll('.inc-filter-btn').forEach((b) => {
-          const active = b.dataset.filter === state.incomeFilter;
-          b.className = `inc-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold ${
-            active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-          }`;
+      try {
+        await dbAdd('income', {
+          clientId,
+          clientName: clientObj ? clientObj.name : 'Client',
+          service,
+          startDate,
+          endDate,
+          amount: parseFloat(document.getElementById('inc-amount').value) || 0,
+          status: document.getElementById('inc-status').value,
+          method: document.getElementById('inc-method').value,
+          createdAt: new Date().toISOString()
         });
-        renderIncomeView();
-      });
-    });
 
-    window.toggleInvoiceStatus = async function(id, currentStatus) {
-      const nextStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
-      await dbUpdate('income', id, { status: nextStatus });
-      showToast(`Invoice marked as ${nextStatus}.`);
-    };
-
-    document.getElementById('expense-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await dbAdd('expenses', {
-        date: document.getElementById('exp-date').value,
-        vendor: document.getElementById('exp-vendor').value.trim(),
-        category: document.getElementById('exp-category').value,
-        amount: parseFloat(document.getElementById('exp-amount').value) || 0,
-        notes: document.getElementById('exp-notes').value.trim(),
-        createdAt: new Date().toISOString()
-      });
-      e.target.reset();
-      document.getElementById('exp-date').value = todayStr;
-      showToast('Expense logged!');
-    });
-
-    document.getElementById('exp-search-input').addEventListener('input', (e) => {
-      state.expenseSearch = e.target.value.toLowerCase();
-      renderExpensesView();
-    });
-
-    // Clients Modal
-    window.openClientModal = function(clientId = null) {
-      const modal = document.getElementById('client-modal');
-      const form = document.getElementById('client-form');
-      form.reset();
-      document.getElementById('client-edit-id').value = clientId || '';
-      if (clientId) {
-        const c = state.clients.find((x) => x.id === clientId);
-        if (c) {
-          document.getElementById('client-modal-title').textContent = 'Edit Client';
-          document.getElementById('client-name-input').value = c.name || '';
-          document.getElementById('client-email-input').value = c.email || '';
-          document.getElementById('client-phone-input').value = c.phone || '';
-          document.getElementById('client-address-input').value = c.address || '';
-          document.getElementById('client-notes-input').value = c.notes || '';
+        let mileageMsg = '';
+        if (autoMileage && clientObj) {
+          const homeBase = (document.getElementById('home-base-input').value || state.settings.homeBase || '').trim();
+          if (homeBase && clientObj.address) {
+            try {
+              const oneWayKm = await computeDrivingDistanceKm(homeBase, clientObj.address);
+              const mult = autoRoundTrip ? 2 : 1;
+              const finalKm = Number((oneWayKm * mult).toFixed(1));
+              await dbAdd('trips', {
+                date: startDate,
+                startAddress: homeBase,
+                destAddress: clientObj.address,
+                distanceKm: finalKm,
+                roundTrip: autoRoundTrip,
+                clientId: clientObj.id,
+                clientName: clientObj.name,
+                purpose: `${service} — ${clientObj.name}`,
+                createdAt: new Date().toISOString()
+              });
+              mileageMsg = ` + ${finalKm} km trip logged!`;
+            } catch (_) {
+              mileageMsg = ' (Income saved, but map route could not resolve address)';
+            }
+          } else {
+            mileageMsg = ' (Set Home Base & client address to auto-log KMs)';
+          }
         }
-      } else {
-        document.getElementById('client-modal-title').textContent = 'Add New Client';
-      }
-      modal.classList.remove('hidden');
-    };
 
-    window.closeClientModal = function() {
-      document.getElementById('client-modal').classList.add('hidden');
-    };
-
-    document.getElementById('client-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const editId = document.getElementById('client-edit-id').value;
-      const payload = {
-        name: document.getElementById('client-name-input').value.trim(),
-        email: document.getElementById('client-email-input').value.trim(),
-        phone: document.getElementById('client-phone-input').value.trim(),
-        address: document.getElementById('client-address-input').value.trim(),
-        notes: document.getElementById('client-notes-input').value.trim()
-      };
-      if (editId) {
-        await dbUpdate('clients', editId, payload);
-        showToast('Client updated!');
-      } else {
-        await dbAdd('clients', { ...payload, createdAt: new Date().toISOString() });
-        showToast('New client added!');
-      }
-      closeClientModal();
-    });
-
-    // Calendar Controls
-    document.getElementById('cal-prev-btn').addEventListener('click', () => {
-      state.calMonth--;
-      if (state.calMonth < 0) {
-        state.calMonth = 11;
-        state.calYear--;
-      }
-      renderCalendarView();
-    });
-
-    document.getElementById('cal-next-btn').addEventListener('click', () => {
-      state.calMonth++;
-      if (state.calMonth > 11) {
-        state.calMonth = 0;
-        state.calYear++;
-      }
-      renderCalendarView();
-    });
-
-    document.getElementById('cal-today-btn').addEventListener('click', () => {
-      const now = new Date();
-      state.calYear = now.getFullYear();
-      state.calMonth = now.getMonth();
-      state.calSelectedDate = now.toISOString().split('T')[0];
-      renderCalendarView();
-    });
-
-    document.getElementById('cal-toggle-block-btn').addEventListener('click', async () => {
-      const dateStr = state.calSelectedDate;
-      if (!dateStr) return;
-      if (state.blockedDates[dateStr]) {
-        await dbDelete('blockedDates', dateStr);
-        showToast(`${dateStr} marked as Free / Available.`);
-      } else {
-        await dbSet('blockedDates', dateStr, { blocked: true, updatedAt: new Date().toISOString() });
-        showToast(`${dateStr} marked as Unavailable.`);
+        e.target.reset();
+        document.getElementById('inc-start-date').value = todayStr;
+        document.getElementById('inc-auto-mileage-check').checked = true;
+        document.getElementById('inc-auto-roundtrip-check').checked = true;
+        updateIncomeAutoMileageHint();
+        showToast(`Income entry added!${mileageMsg}`);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '+ Save Income Entry';
       }
     });
 
@@ -2306,15 +2376,15 @@
                   ${owing > 0 ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Owes ${formatCurrency(owing)}</span>` : `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">Paid Up</span>`}
                 </div>
                 <div class="mt-3 space-y-1.5 text-xs text-slate-600">
-                  ${c.phone ? `<p class="flex items-center gap-2"><i data-lucide="phone" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.phone)}</p>` : ''}
-                  ${c.email ? `<p class="flex items-center gap-2"><i data-lucide="mail" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.email)}</p>` : ''}
-                  ${c.address ? `<p class="flex items-start gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5"></i> <span>${escapeHTML(c.address)}</span></p>` : ''}
-                  ${c.notes ? `<p class="mt-2 p-2.5 rounded-xl bg-slate-50 text-slate-500 italic">${escapeHTML(c.notes)}</p>` : ''}
+              <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <button onclick="quickAutoLogClientTrip('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1" title="Auto-calculate & log round trip from Home Base">
+                  <i data-lucide="car" class="w-3.5 h-3.5"></i>
+                  <span>Log Drive</span>
+                </button>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="openClientModal('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Edit</button>
+                  <button onclick="deleteRecord('clients', '${c.id}', 'client')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
                 </div>
-              </div>
-              <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button onclick="openClientModal('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Edit</button>
-                <button onclick="deleteRecord('clients', '${c.id}', 'client')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
               </div>
             </div>
           `;
