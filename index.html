@@ -3033,6 +3033,101 @@
         `;
       }
     };
+
+    function parseDelimitedTable(rawText) {
+      const text = String(rawText || '').replace(/^\uFEFF/, '').trim();
+      if (!text) return [];
+
+      const firstLine = text.split(/\r?\n/)[0] || '';
+      const delimiter = firstLine.includes('\t') ? '\t' : ',';
+
+      const rows = [];
+      let currentRow = [];
+      let currentCell = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        if (ch === '"') {
+          if (inQuotes && next === '"') {
+            currentCell += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === delimiter && !inQuotes) {
+          currentRow.push(currentCell.trim());
+          currentCell = '';
+        } else if ((ch === '\n' || (ch === '\r' && next === '\n')) && !inQuotes) {
+          if (ch === '\r') i++;
+          currentRow.push(currentCell.trim());
+          if (currentRow.some((cell) => cell !== '')) rows.push(currentRow);
+          currentRow = [];
+          currentCell = '';
+        } else {
+          currentCell += ch;
+        }
+      }
+      currentRow.push(currentCell.trim());
+      if (currentRow.some((cell) => cell !== '')) rows.push(currentRow);
+
+      if (rows.length < 2) return [];
+
+      const headers = rows[0].map((h) =>
+        String(h)
+          .replace(/^[^\w]+/, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+      );
+
+      return rows.slice(1).map((cols) => {
+        const obj = {};
+        headers.forEach((key, idx) => {
+          if (key) obj[key] = cols[idx] !== undefined ? cols[idx] : '';
+        });
+        return obj;
+      });
+    }
+
+    function normalizeImportDate(rawDate) {
+      const cleaned = String(rawDate || '').trim();
+      if (!cleaned) return todayStr;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+
+      // Handle ranges like "August 20, 2026 → August 22, 2026" by taking the start date
+      const firstPart = cleaned.split(/→|->|\s+to\s+/i)[0].trim();
+      const parsed = new Date(firstPart);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return todayStr;
+    }
+
+    document.getElementById('notion-csv-file-input').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = String(ev.target?.result || '');
+        document.getElementById('notion-raw-textarea').value = content;
+        const parsedRows = parseDelimitedTable(content);
+        const previewBox = document.getElementById('notion-preview-box');
+        if (parsedRows.length > 0) {
+          previewBox.textContent = `Ready to import ${parsedRows.length} row(s) from "${file.name}". Click "Import Records Now" below.`;
+          previewBox.classList.remove('hidden');
+        } else {
+          previewBox.textContent = `Loaded "${file.name}", but no data rows were detected. Make sure the file has a header row and at least one record.`;
+          previewBox.classList.remove('hidden');
+        }
+      };
+      reader.readAsText(file);
+    });
+
     function cleanNotionRelationText(val) {
       if (!val) return '';
       // Strip Notion CSV relation URLs like "Will Warm & Sadie Glickman (https://www.notion.so/...)" and leading emojis
@@ -3092,7 +3187,26 @@
             const matchedClient = state.clients.find(
               (c) => (c.name || '').trim().toLowerCase() === rawClient.toLowerCase()
             );
-            const displayClientName = matchedClient ? matchedClient.name : (rawClient || 'Client');
+            let resolvedClientId = matchedClient ? matchedClient.id : '';
+            let displayClientName = matchedClient ? matchedClient.name : (rawClient || 'Client');
+            let resolvedClientAddress = matchedClient ? (matchedClient.address || '') : '';
+
+            // Auto-create the client in Clients Directory if they don't exist yet
+            if (!matchedClient && rawClient) {
+              const newClientPayload = {
+                name: rawClient,
+                email: '',
+                phone: '',
+                address: '',
+                notes: petName ? `Pet: ${petName}` : '',
+                createdAt: new Date().toISOString()
+              };
+              const newClientId = await dbAdd('clients', newClientPayload);
+              resolvedClientId = newClientId;
+              // Add to local cache immediately so subsequent rows for the same client reuse this ID
+              state.clients.push({ id: newClientId, ...newClientPayload });
+            }
+
             const serviceLabel = petName && serviceType && !serviceType.toLowerCase().includes(petName.toLowerCase())
               ? `${serviceType} (${petName})`
               : (serviceType || petName || 'Booking');
@@ -3105,7 +3219,7 @@
 
             await dbAdd('income', {
               bookingId,
-              clientId: matchedClient ? matchedClient.id : '',
+              clientId: resolvedClientId,
               clientName: displayClientName,
               service: serviceLabel,
               startDate: isoDate,
@@ -3120,8 +3234,8 @@
             });
             importedCount++;
 
-            if (autoMileage && homeBase && matchedClient && matchedClient.address) {
-              const destAddr = matchedClient.address.trim();
+            if (autoMileage && homeBase && resolvedClientAddress) {
+              const destAddr = resolvedClientAddress.trim();
               try {
                 if (routeDistanceCache[destAddr] === undefined) {
                   routeDistanceCache[destAddr] = await computeDrivingDistanceKm(homeBase, destAddr);
@@ -3135,9 +3249,9 @@
                     destAddress: destAddr,
                     distanceKm: finalKm,
                     roundTrip: autoRoundTrip,
-                    clientId: matchedClient.id,
-                    clientName: matchedClient.name,
-                    purpose: `${serviceLabel} — ${matchedClient.name}`,
+                    clientId: resolvedClientId,
+                    clientName: displayClientName,
+                    purpose: `${serviceLabel} — ${displayClientName}`,
                     createdAt: new Date().toISOString()
                   });
                   autoTripsCount++;
