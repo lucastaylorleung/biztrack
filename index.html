@@ -747,12 +747,29 @@
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Amount ($)</label>
                 <input id="exp-amount" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
-              <div class="sm:col-span-2 lg:col-span-4">
+              <div class="lg:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Link to Booking (Optional)</label>
+                <select id="exp-booking-select" class="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">General Business Expense (No Booking)</option>
+                </select>
+              </div>
+              <div class="lg:col-span-2">
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Receipt Photo / Image</label>
+                <input id="exp-receipt-input" type="file" accept="image/*" class="w-full text-xs text-slate-600 border border-slate-200 rounded-xl px-2.5 py-2 bg-slate-50 file:mr-2.5 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" />
+              </div>
+              <div class="sm:col-span-2 lg:col-span-2">
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Notes / Receipt Reference</label>
                 <input id="exp-notes" type="text" placeholder="Optional details for tax write-off..." class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
-              <div class="lg:col-span-2 flex items-end">
-                <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition shadow-sm">
+              <div class="sm:col-span-2 lg:col-span-4 flex flex-col justify-center bg-amber-50/70 border border-amber-200/80 rounded-xl px-3.5 py-2.5">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input id="exp-bill-client-check" type="checkbox" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                  <span class="text-xs font-bold text-slate-800">Bill to Client &amp; Add to Linked Invoice Total</span>
+                </label>
+                <p id="exp-bill-client-hint" class="text-[11px] text-slate-500 mt-0.5 pl-6">Select a booking above to automatically add this expense amount onto the client's invoice.</p>
+              </div>
+              <div class="sm:col-span-2 lg:col-span-2 flex items-end">
+                <button type="submit" id="exp-submit-btn" class="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition shadow-sm">
                   + Save Expense
                 </button>
               </div>
@@ -763,9 +780,12 @@
 
           <div class="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h3 class="font-bold text-slate-900">Itemized Expenses</h3>
+              <div>
+                <h3 class="font-bold text-slate-900">Itemized Expenses</h3>
+                <p class="text-xs text-slate-500">Tip: <strong>Click any cell</strong> to edit inline, or click the receipt badge to view/attach a photo.</p>
+              </div>
               <div class="flex items-center gap-2">
-                <input id="exp-search-input" type="text" placeholder="Search vendor or notes..." class="text-sm border border-slate-200 rounded-xl px-3.5 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <input id="exp-search-input" type="text" placeholder="Search vendor, booking, or notes..." class="text-sm border border-slate-200 rounded-xl px-3.5 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
             <div class="overflow-x-auto">
@@ -775,7 +795,9 @@
                     <th class="py-3 px-4">Date</th>
                     <th class="py-3 px-4">Merchant / Vendor</th>
                     <th class="py-3 px-4">Category</th>
+                    <th class="py-3 px-4">Linked Booking / Client</th>
                     <th class="py-3 px-4">Notes</th>
+                    <th class="py-3 px-4 text-center">Receipt</th>
                     <th class="py-3 px-4 text-right">Amount</th>
                     <th class="py-3 px-4 text-right">Action</th>
                   </tr>
@@ -1147,6 +1169,41 @@
             </div>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== RECEIPT PHOTO VIEWER / UPLOAD MODAL ==================== -->
+  <div id="receipt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div>
+          <h3 id="receipt-modal-title" class="text-lg font-bold text-slate-900">Receipt Photo</h3>
+          <p id="receipt-modal-sub" class="text-xs text-slate-500">Stored securely with your expense record</p>
+        </div>
+        <button onclick="closeReceiptModal()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="mt-4 space-y-4">
+        <div id="receipt-preview-wrap" class="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex items-center justify-center min-h-[220px]">
+          <img id="receipt-modal-img" src="https://placehold.co/600x400/f1f5f9/64748b?text=No+Receipt+Attached" alt="Receipt" class="max-h-[55vh] w-auto rounded-xl object-contain" />
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <label class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold cursor-pointer transition">
+            <i data-lucide="camera" class="w-4 h-4"></i>
+            <span>Upload / Replace Receipt Photo</span>
+            <input id="receipt-replace-input" type="file" accept="image/*" class="hidden" />
+          </label>
+          <div class="flex items-center gap-2">
+            <button type="button" id="receipt-remove-btn" class="hidden px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100">
+              Remove Photo
+            </button>
+            <button type="button" onclick="closeReceiptModal()" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200">
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2227,6 +2284,17 @@
       }
     });
 
+    async function computeDrivingDistanceKm(startAddr, destAddr) {
+      const [startPt, destPt] = await Promise.all([geocodeAddress(startAddr), geocodeAddress(destAddr)]);
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lon},${startPt.lat};${destPt.lon},${destPt.lat}?overview=false`;
+      const routeRes = await fetch(osrmUrl);
+      const routeData = await routeRes.json();
+      if (!routeData.routes || !routeData.routes.length) {
+        throw new Error('No driving route found between addresses.');
+      }
+      return routeData.routes[0].distance / 1000;
+    }
+
     document.getElementById('calculate-route-btn').addEventListener('click', async () => {
       const startAddr = document.getElementById('trip-start-input').value.trim();
       const destAddr = document.getElementById('trip-dest-input').value.trim();
@@ -2304,17 +2372,32 @@
       showToast('Trip saved to mileage log!');
     });
 
-    // ==================== 10. INCOME, EXPENSES, CLIENTS, SERVICES, CALENDAR & TASKS HANDLERS ====================
-    async function computeDrivingDistanceKm(startAddr, destAddr) {
-      const [startPt, destPt] = await Promise.all([geocodeAddress(startAddr), geocodeAddress(destAddr)]);
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lon},${startPt.lat};${destPt.lon},${destPt.lat}?overview=false`;
-      const routeRes = await fetch(osrmUrl);
-      const routeData = await routeRes.json();
-      if (!routeData.routes || !routeData.routes.length) {
-        throw new Error('No driving route found between addresses.');
+    // ==================== 10. INCOME, SERVICES & EXPENSES HANDLERS ====================
+    function recalculateIncomeTotal() {
+      const base = parseFloat(document.getElementById('inc-base-price').value) || 0;
+      const discVal = parseFloat(document.getElementById('inc-discount-val').value) || 0;
+      const discType = document.getElementById('inc-discount-type').value;
+      let finalTotal = base;
+      if (discType === 'percent') {
+        finalTotal = base * (1 - Math.min(100, Math.max(0, discVal)) / 100);
+      } else {
+        finalTotal = Math.max(0, base - Math.max(0, discVal));
       }
-      return routeData.routes[0].distance / 1000;
+      document.getElementById('inc-amount').value = finalTotal.toFixed(2);
     }
+
+    document.getElementById('inc-base-price').addEventListener('input', recalculateIncomeTotal);
+    document.getElementById('inc-discount-val').addEventListener('input', recalculateIncomeTotal);
+    document.getElementById('inc-discount-type').addEventListener('change', recalculateIncomeTotal);
+
+    document.getElementById('inc-service-preset').addEventListener('change', (e) => {
+      const srv = state.services.find((s) => s.id === e.target.value);
+      if (srv) {
+        document.getElementById('inc-service').value = srv.name;
+        document.getElementById('inc-base-price').value = Number(srv.price || 0).toFixed(2);
+        recalculateIncomeTotal();
+      }
+    });
 
     function updateIncomeAutoMileageHint() {
       const hintEl = document.getElementById('inc-auto-mileage-hint');
@@ -2339,32 +2422,6 @@
     }
 
     document.getElementById('inc-client').addEventListener('change', updateIncomeAutoMileageHint);
-
-    function recalculateIncomeTotal() {
-      const base = parseFloat(document.getElementById('inc-base-price').value) || 0;
-      const discVal = parseFloat(document.getElementById('inc-discount-val').value) || 0;
-      const discType = document.getElementById('inc-discount-type').value;
-      let finalTotal = base;
-      if (discType === 'percent') {
-        finalTotal = base - (base * Math.min(100, Math.max(0, discVal))) / 100;
-      } else {
-        finalTotal = base - Math.max(0, discVal);
-      }
-      document.getElementById('inc-amount').value = Math.max(0, finalTotal).toFixed(2);
-    }
-
-    document.getElementById('inc-base-price').addEventListener('input', recalculateIncomeTotal);
-    document.getElementById('inc-discount-val').addEventListener('input', recalculateIncomeTotal);
-    document.getElementById('inc-discount-type').addEventListener('change', recalculateIncomeTotal);
-
-    document.getElementById('inc-service-preset').addEventListener('change', (e) => {
-      const srv = state.services.find((s) => s.id === e.target.value);
-      if (srv) {
-        document.getElementById('inc-service').value = srv.name;
-        document.getElementById('inc-base-price').value = Number(srv.price || 0).toFixed(2);
-        recalculateIncomeTotal();
-      }
-    });
 
     window.quickAutoLogClientTrip = async function(clientId) {
       const clientObj = state.clients.find((c) => c.id === clientId);
@@ -2406,19 +2463,18 @@
       const service = document.getElementById('inc-service').value.trim();
       const startDate = document.getElementById('inc-start-date').value;
       const endDate = document.getElementById('inc-end-date').value || startDate;
+      const basePrice = parseFloat(document.getElementById('inc-base-price').value) || parseFloat(document.getElementById('inc-amount').value) || 0;
+      const discountVal = parseFloat(document.getElementById('inc-discount-val').value) || 0;
+      const discountType = document.getElementById('inc-discount-type').value;
+      const finalAmount = parseFloat(document.getElementById('inc-amount').value) || 0;
       const autoMileage = document.getElementById('inc-auto-mileage-check').checked;
       const autoRoundTrip = document.getElementById('inc-auto-roundtrip-check').checked;
+      const bookingId = generateNextBookingId();
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Saving...';
 
       try {
-        const basePrice = parseFloat(document.getElementById('inc-base-price').value) || 0;
-        const discountVal = parseFloat(document.getElementById('inc-discount-val').value) || 0;
-        const discountType = document.getElementById('inc-discount-type').value;
-        const finalAmount = parseFloat(document.getElementById('inc-amount').value) || 0;
-        const bookingId = generateNextBookingId();
-
         await dbAdd('income', {
           bookingId,
           clientId,
@@ -2469,18 +2525,12 @@
         document.getElementById('inc-auto-mileage-check').checked = true;
         document.getElementById('inc-auto-roundtrip-check').checked = true;
         updateIncomeAutoMileageHint();
-        showToast(`Booking ${bookingId} added!${mileageMsg}`);
+        showToast(`Booking ${bookingId} saved!${mileageMsg}`);
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = '+ Save Income Entry';
       }
     });
-
-    window.toggleInvoiceStatus = async function(id, currentStatus) {
-      const nextStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
-      await dbUpdate('income', id, { status: nextStatus });
-      showToast(`Invoice marked as ${nextStatus}.`);
-    };
 
     document.querySelectorAll('.inc-filter-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2492,29 +2542,306 @@
           }`;
         });
         renderIncomeView();
+        lucide.createIcons();
       });
     });
 
-    // Expenses Handlers
+    window.toggleInvoiceStatus = async function(id, currentStatus) {
+      const nextStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+      await dbUpdate('income', id, { status: nextStatus });
+      showToast(`Invoice marked as ${nextStatus}.`);
+    };
+
+    // Expenses Handlers & Receipt Image Compression
+    function compressReceiptImage(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) return resolve('');
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Could not read receipt file.'));
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('Invalid receipt image file.'));
+          img.onload = () => {
+            const maxDim = 1000;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.72));
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function updateExpenseBillClientHint() {
+      const bookingId = document.getElementById('exp-booking-select').value;
+      const billChecked = document.getElementById('exp-bill-client-check').checked;
+      const hintEl = document.getElementById('exp-bill-client-hint');
+      if (!bookingId) {
+        hintEl.textContent = 'Select a booking above to automatically add this expense amount onto the client\'s invoice.';
+        return;
+      }
+      const inv = state.income.find((x) => x.id === bookingId);
+      if (!inv) return;
+      const code = inv.bookingId || 'Booking';
+      hintEl.innerHTML = billChecked
+        ? `Will add expense amount directly onto <strong>${escapeHTML(code)} (${escapeHTML(inv.clientName)})</strong> — current total: <strong>${formatCurrency(inv.amount)}</strong>.`
+        : `Linked to <strong>${escapeHTML(code)} (${escapeHTML(inv.clientName)})</strong> for tracking only (will not change invoice total).`;
+    }
+
+    document.getElementById('exp-booking-select').addEventListener('change', updateExpenseBillClientHint);
+    document.getElementById('exp-bill-client-check').addEventListener('change', updateExpenseBillClientHint);
+
     document.getElementById('expense-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      await dbAdd('expenses', {
-        date: document.getElementById('exp-date').value,
-        vendor: document.getElementById('exp-vendor').value.trim(),
-        category: document.getElementById('exp-category').value,
-        amount: parseFloat(document.getElementById('exp-amount').value) || 0,
-        notes: document.getElementById('exp-notes').value.trim(),
-        createdAt: new Date().toISOString()
-      });
-      e.target.reset();
-      document.getElementById('exp-date').value = todayStr;
-      showToast('Expense logged!');
+      const submitBtn = document.getElementById('exp-submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+
+      try {
+        const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+        const vendor = document.getElementById('exp-vendor').value.trim();
+        const linkedIncomeId = document.getElementById('exp-booking-select').value;
+        const linkedInv = linkedIncomeId ? state.income.find((x) => x.id === linkedIncomeId) : null;
+        const billToClient = Boolean(linkedInv && document.getElementById('exp-bill-client-check').checked);
+        const fileInput = document.getElementById('exp-receipt-input');
+        const receiptFile = fileInput.files && fileInput.files[0];
+        const receiptData = receiptFile ? await compressReceiptImage(receiptFile) : '';
+
+        await dbAdd('expenses', {
+          date: document.getElementById('exp-date').value,
+          vendor,
+          category: document.getElementById('exp-category').value,
+          amount,
+          notes: document.getElementById('exp-notes').value.trim(),
+          linkedIncomeId: linkedInv ? linkedInv.id : '',
+          linkedBookingCode: linkedInv ? (linkedInv.bookingId || '') : '',
+          linkedClientName: linkedInv ? (linkedInv.clientName || '') : '',
+          billedToClient: billToClient,
+          receiptData,
+          createdAt: new Date().toISOString()
+        });
+
+        let extraMsg = '';
+        if (billToClient && linkedInv) {
+          const updatedAmount = Number((Number(linkedInv.amount || 0) + amount).toFixed(2));
+          const updatedBase = Number((Number(linkedInv.basePrice || linkedInv.amount || 0) + amount).toFixed(2));
+          const addonTag = `+ Reimbursable: ${vendor} (${formatCurrency(amount)})`;
+          const updatedService = (linkedInv.service || '').includes(addonTag)
+            ? linkedInv.service
+            : `${linkedInv.service} ${addonTag}`;
+          await dbUpdate('income', linkedInv.id, {
+            amount: updatedAmount,
+            basePrice: updatedBase,
+            service: updatedService
+          });
+          extraMsg = ` & added ${formatCurrency(amount)} to ${linkedInv.bookingId || linkedInv.clientName}'s invoice!`;
+        }
+
+        e.target.reset();
+        document.getElementById('exp-date').value = todayStr;
+        updateExpenseBillClientHint();
+        showToast(`Expense logged!${extraMsg}`);
+      } catch (err) {
+        showToast(err.message || 'Could not save expense.', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '+ Save Expense';
+      }
     });
 
     document.getElementById('exp-search-input').addEventListener('input', (e) => {
       state.expenseSearch = e.target.value.trim().toLowerCase();
       renderExpensesView();
+      lucide.createIcons();
     });
+
+    let activeReceiptExpenseId = null;
+
+    window.openReceiptModal = function(expenseId) {
+      const exp = state.expenses.find((x) => x.id === expenseId);
+      if (!exp) return;
+      activeReceiptExpenseId = expenseId;
+      document.getElementById('receipt-modal-title').textContent = `Receipt — ${exp.vendor || 'Expense'}`;
+      document.getElementById('receipt-modal-sub').textContent = `${exp.date || ''} • ${formatCurrency(exp.amount)}`;
+      const imgEl = document.getElementById('receipt-modal-img');
+      const removeBtn = document.getElementById('receipt-remove-btn');
+      if (exp.receiptData) {
+        imgEl.src = exp.receiptData;
+        removeBtn.classList.remove('hidden');
+      } else {
+        imgEl.src = 'https://placehold.co/600x400/f1f5f9/64748b?text=No+Receipt+Attached+Yet';
+        removeBtn.classList.add('hidden');
+      }
+      document.getElementById('receipt-replace-input').value = '';
+      document.getElementById('receipt-modal').classList.remove('hidden');
+      lucide.createIcons();
+    };
+
+    window.closeReceiptModal = function() {
+      activeReceiptExpenseId = null;
+      document.getElementById('receipt-modal').classList.add('hidden');
+    };
+
+    document.getElementById('receipt-replace-input').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file || !activeReceiptExpenseId) return;
+      try {
+        const compressed = await compressReceiptImage(file);
+        await dbUpdate('expenses', activeReceiptExpenseId, { receiptData: compressed });
+        document.getElementById('receipt-modal-img').src = compressed;
+        document.getElementById('receipt-remove-btn').classList.remove('hidden');
+        showToast('Receipt photo attached!');
+      } catch (err) {
+        showToast(err.message || 'Failed to upload receipt photo.', 'error');
+      }
+    });
+
+    document.getElementById('receipt-remove-btn').addEventListener('click', async () => {
+      if (!activeReceiptExpenseId) return;
+      await dbUpdate('expenses', activeReceiptExpenseId, { receiptData: '' });
+      document.getElementById('receipt-modal-img').src = 'https://placehold.co/600x400/f1f5f9/64748b?text=No+Receipt+Attached+Yet';
+      document.getElementById('receipt-remove-btn').classList.add('hidden');
+      showToast('Receipt photo removed.');
+    });
+
+    window.startInlineExpenseEdit = function(td, id, field) {
+      if (td.dataset.editing === 'true') return;
+      const item = state.expenses.find((x) => x.id === id);
+      if (!item) return;
+
+      td.dataset.editing = 'true';
+      const currentVal = item[field] !== undefined && item[field] !== null ? item[field] : '';
+      const categories = [
+        'Supplies & Equipment',
+        'Vehicle & Fuel',
+        'Software & Subscriptions',
+        'Advertising & Marketing',
+        'Phone & Internet',
+        'Insurance & Fees',
+        'Other'
+      ];
+
+      let inputEl;
+      if (field === 'category') {
+        inputEl = document.createElement('select');
+        categories.forEach((cat) => {
+          const o = document.createElement('option');
+          o.value = cat;
+          o.textContent = cat;
+          if (cat === currentVal) o.selected = true;
+          inputEl.appendChild(o);
+        });
+      } else if (field === 'linkedIncomeId') {
+        inputEl = document.createElement('select');
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = 'No Booking (General)';
+        inputEl.appendChild(noneOpt);
+        const sortedBookings = [...state.income].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+        sortedBookings.forEach((b) => {
+          const o = document.createElement('option');
+          o.value = b.id;
+          o.textContent = `${b.bookingId || 'Booking'} — ${b.clientName} (${b.startDate})`;
+          if (b.id === currentVal) o.selected = true;
+          inputEl.appendChild(o);
+        });
+      } else if (field === 'date') {
+        inputEl = document.createElement('input');
+        inputEl.type = 'date';
+        inputEl.value = currentVal;
+      } else if (field === 'amount') {
+        inputEl = document.createElement('input');
+        inputEl.type = 'number';
+        inputEl.step = '0.01';
+        inputEl.min = '0';
+        inputEl.value = Number(currentVal || 0).toFixed(2);
+      } else {
+        inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.value = currentVal;
+      }
+
+      inputEl.className = 'w-full min-w-[95px] text-xs font-semibold text-slate-900 bg-white border-2 border-indigo-500 rounded-lg px-2 py-1 focus:outline-none shadow-xs';
+      if (field === 'amount') inputEl.classList.add('text-right');
+
+      td.innerHTML = '';
+      td.appendChild(inputEl);
+      inputEl.focus();
+      if (inputEl.select) inputEl.select();
+
+      let finished = false;
+      const commit = async () => {
+        if (finished) return;
+        finished = true;
+        delete td.dataset.editing;
+        const raw = inputEl.value.trim();
+
+        const updates = {};
+        if (field === 'amount') {
+          const num = parseFloat(raw);
+          updates.amount = isNaN(num) ? 0 : Math.max(0, num);
+        } else if (field === 'linkedIncomeId') {
+          if (!raw) {
+            updates.linkedIncomeId = '';
+            updates.linkedBookingCode = '';
+            updates.linkedClientName = '';
+          } else {
+            const inv = state.income.find((x) => x.id === raw);
+            if (inv) {
+              updates.linkedIncomeId = inv.id;
+              updates.linkedBookingCode = inv.bookingId || '';
+              updates.linkedClientName = inv.clientName || '';
+            }
+          }
+        } else if (field === 'notes') {
+          updates.notes = raw;
+        } else {
+          if (raw) updates[field] = raw;
+        }
+
+        if (Object.keys(updates).length) {
+          await dbUpdate('expenses', id, updates);
+          showToast('Expense updated');
+        } else {
+          renderExpensesView();
+          lucide.createIcons();
+        }
+      };
+
+      const cancel = () => {
+        if (finished) return;
+        finished = true;
+        delete td.dataset.editing;
+        renderExpensesView();
+        lucide.createIcons();
+      };
+
+      inputEl.addEventListener('blur', commit);
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          inputEl.blur();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancel();
+        }
+      });
+    };
 
     // Clients Modal & Form Handlers
     window.openClientModal = function(clientId = null) {
@@ -2732,6 +3059,17 @@
         .map((s) => `<option value="${s.id}">${escapeHTML(s.name)} (${formatCurrency(s.price)})</option>`)
         .join('');
       document.getElementById('inc-service-preset').innerHTML = `<option value="">Pick saved service...</option>${srvOptions}`;
+
+      const bookingSel = document.getElementById('exp-booking-select');
+      if (bookingSel) {
+        const prevVal = bookingSel.value;
+        const sortedBookings = [...state.income].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+        const bookingOptions = sortedBookings
+          .map((b) => `<option value="${b.id}">${escapeHTML(b.bookingId || 'Booking')} — ${escapeHTML(b.clientName)} (${escapeHTML(b.startDate)}) • ${formatCurrency(b.amount)}</option>`)
+          .join('');
+        bookingSel.innerHTML = `<option value="">General Business Expense (No Booking)</option>${bookingOptions}`;
+        if (prevVal) bookingSel.value = prevVal;
+      }
     }
 
     function renderDashboardView() {
@@ -2909,29 +3247,66 @@
         .join('');
 
       const filtered = state.expenseSearch
-        ? yrExpenses.filter((e) => (e.vendor || '').toLowerCase().includes(state.expenseSearch) || (e.notes || '').toLowerCase().includes(state.expenseSearch) || (e.category || '').toLowerCase().includes(state.expenseSearch))
+        ? yrExpenses.filter((e) =>
+            (e.vendor || '').toLowerCase().includes(state.expenseSearch) ||
+            (e.notes || '').toLowerCase().includes(state.expenseSearch) ||
+            (e.category || '').toLowerCase().includes(state.expenseSearch) ||
+            (e.linkedClientName || '').toLowerCase().includes(state.expenseSearch) ||
+            (e.linkedBookingCode || '').toLowerCase().includes(state.expenseSearch)
+          )
         : yrExpenses;
 
       const tbody = document.getElementById('expenses-table-body');
       if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-xs text-slate-400">No expenses recorded for ${state.selectedYear}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-xs text-slate-400">No expenses recorded for ${state.selectedYear}.</td></tr>`;
         return;
       }
       tbody.innerHTML = filtered
-        .map((e) => `
-          <tr class="hover:bg-slate-50">
-            <td class="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap">${escapeHTML(e.date)}</td>
-            <td class="py-3 px-4 font-bold text-slate-900">${escapeHTML(e.vendor)}</td>
-            <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">${escapeHTML(e.category)}</span></td>
-            <td class="py-3 px-4 text-xs text-slate-500 max-w-xs truncate">${escapeHTML(e.notes || '—')}</td>
-            <td class="py-3 px-4 text-right font-extrabold text-rose-600">${formatCurrency(e.amount)}</td>
-            <td class="py-3 px-4 text-right">
-              <button onclick="deleteRecord('expenses', '${e.id}', 'expense')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
-            </td>
-          </tr>
-        `)
+        .map((e) => {
+          const linkedLabel = e.linkedClientName
+            ? `${e.linkedBookingCode ? `${e.linkedBookingCode} • ` : ''}${e.linkedClientName}`
+            : 'General';
+          const billedBadge = e.billedToClient
+            ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">Billed</span>`
+            : '';
+          const receiptBtn = e.receiptData
+            ? `<button type="button" onclick="openReceiptModal('${e.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition">
+                <i data-lucide="image" class="w-3.5 h-3.5"></i><span>View</span>
+               </button>`
+            : `<button type="button" onclick="openReceiptModal('${e.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition">
+                <i data-lucide="camera" class="w-3.5 h-3.5"></i><span>+ Add</span>
+               </button>`;
+          return `
+            <tr class="hover:bg-slate-50">
+              <td onclick="startInlineExpenseEdit(this, '${e.id}', 'date')" title="Click to edit Date" class="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap cursor-pointer hover:bg-indigo-50/70 rounded-lg">
+                ${escapeHTML(e.date)}
+              </td>
+              <td onclick="startInlineExpenseEdit(this, '${e.id}', 'vendor')" title="Click to edit Vendor" class="py-3 px-4 font-bold text-slate-900 cursor-pointer hover:bg-indigo-50/70 rounded-lg">
+                ${escapeHTML(e.vendor)}
+              </td>
+              <td onclick="startInlineExpenseEdit(this, '${e.id}', 'category')" title="Click to edit Category" class="py-3 px-4 cursor-pointer hover:bg-indigo-50/70 rounded-lg">
+                <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">${escapeHTML(e.category)}</span>
+              </td>
+              <td onclick="startInlineExpenseEdit(this, '${e.id}', 'linkedIncomeId')" title="Click to change Linked Booking" class="py-3 px-4 text-xs cursor-pointer hover:bg-indigo-50/70 rounded-lg">
+                <span class="font-semibold ${e.linkedClientName ? 'text-indigo-700' : 'text-slate-400'}">${escapeHTML(linkedLabel)}</span>${billedBadge}
+              </td>
+              <td onclick="startInlineExpenseEdit(this, '${e.id}', 'notes')" title="Click to edit Notes" class="py-3 px-4 text-xs text-slate-500 max-w-xs truncate cursor-pointer hover:bg-indigo-50/70 rounded-lg">
+                ${escapeHTML(e.notes || '—')}
+              </td>
+              <td class="py-3 px-4 text-center whitespace-nowrap">
+                ${receiptBtn}
+              </td>
+              <td onclick="startInlineExpenseEdit(this, '${e.id}', 'amount')" title="Click to edit Amount ($)" class="py-3 px-4 text-right font-extrabold text-rose-600 cursor-pointer hover:bg-indigo-50/70 rounded-lg">
+                ${formatCurrency(e.amount)}
+              </td>
+              <td class="py-3 px-4 text-right">
+                <button onclick="deleteRecord('expenses', '${e.id}', 'expense')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        })
         .join('');
     }
 
@@ -2956,8 +3331,8 @@
                 <div class="mt-3 space-y-1.5 text-xs text-slate-600">
                   ${c.email ? `<p class="flex items-center gap-2"><i data-lucide="mail" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.email)}</p>` : ''}
                   ${c.phone ? `<p class="flex items-center gap-2"><i data-lucide="phone" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.phone)}</p>` : ''}
-                  ${c.address ? `<p class="flex items-start gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></i> <span>${escapeHTML(c.address)}</span></p>` : ''}
-                  ${c.notes ? `<p class="mt-2 p-2.5 rounded-xl bg-slate-50 text-slate-500 italic">${escapeHTML(c.notes)}</p>` : ''}
+                  ${c.address ? `<p class="flex items-start gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5"></i> <span>${escapeHTML(c.address)}</span></p>` : `<p class="text-slate-400 italic">No address saved</p>`}
+                  ${c.notes ? `<p class="mt-2 p-2.5 rounded-xl bg-slate-50 text-slate-600 border border-slate-100">${escapeHTML(c.notes)}</p>` : ''}
                 </div>
               </div>
               <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
