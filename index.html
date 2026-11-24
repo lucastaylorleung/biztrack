@@ -1136,483 +1136,215 @@
     // Use standard root users/{uid}/{col} when self-hosted with user's own Firebase,
     // or /artifacts/{appId}/users/{uid}/{col} inside the preview sandbox.
     const useSelfHostRootPath = configSourceMode === 'hardcoded-custom' || configSourceMode === 'saved-custom';
+    const isFirebaseConfigured = configSourceMode !== 'demo-fallback';
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    let app = null;
+    let auth = null;
+    let db = null;
 
-    // Handle redirect return if signInWithRedirect was triggered
-    getRedirectResult(auth).catch((err) => {
-      if (err && err.code) {
-        console.warn('Redirect sign-in notice:', err.code);
-      }
-    });
+    if (isFirebaseConfigured) {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+
+      // Handle redirect return if signInWithRedirect was triggered
+      getRedirectResult(auth).catch((err) => {
+        if (err && err.code) {
+          console.warn('Redirect sign-in notice:', err.code);
+        }
+      });
+    }
 
     // ==================== 2. APPLICATION STATE ====================
-    const nowDate = new Date();
-    const currentYear = nowDate.getFullYear();
-    const todayStr = [
-      nowDate.getFullYear(),
-      String(nowDate.getMonth() + 1).padStart(2, '0'),
-      String(nowDate.getDate()).padStart(2, '0')
-    ].join('-');
-
+    const currentYear = new Date().getFullYear();
     const state = {
       user: null,
       activeTab: 'dashboard',
-      selectedYear: String(currentYear),
-      clients: [],
-      income: [],
-      expenses: [],
-      mileage: [],
-      blockedDates: [],
-      tasks: [],
-      settings: {
-        homeBase: '',
-        tier1Rate: 0.73,
-        tier2Rate: 0.67
-      },
+      selectedYear: currentYear,
       incomeFilter: 'All',
       taskFilter: 'Open',
       expenseSearch: '',
       calYear: currentYear,
-// ... existing code ... -->
-      // 6. Blocked Dates
-      const unsubBlocked = onSnapshot(
-        userColRef(uid, 'blockedDates'),
-        (snap) => {
-          state.blockedDates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          renderCalendar();
-        },
-        (err) => console.error('BlockedDates sync error:', err)
-      );
-
-      // 7. Tasks & Follow-Ups
-      const unsubTasks = onSnapshot(
-        userColRef(uid, 'tasks'),
-        (snap) => {
-          state.tasks = snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31'));
-          renderAllViews();
-        },
-        (err) => console.error('Tasks sync error:', err)
-      );
-
-      state.unsubscribers.push(
-        unsubSettings,
-        unsubClients,
-        unsubIncome,
-        unsubExpenses,
-        unsubMileage,
-        unsubBlocked,
-        unsubTasks
-      );
-    }
-
-    // ==================== 6. NAVIGATION & TAX YEAR SELECTOR ====================
-    const TAB_META = {
-      dashboard: { title: 'Dashboard & Tax Summary', sub: 'Real-time financial overview, unpaid balances, and CRA mileage deductions.' },
-      mileage: { title: 'Mileage Tracker (Auto Map)', sub: 'Automatic route calculation via OpenStreetMap & OSRM with tax deduction estimates.' },
-      income: { title: 'Income & Invoices', sub: 'Track client bookings, payment methods, and toggle Paid vs. Unpaid status.' },
-      expenses: { title: 'Business Expenses', sub: 'Log tax-deductible receipts organized by CRA/IRS expense categories.' },
-      clients: { title: 'Clients Directory', sub: 'Manage client contact info, saved routing addresses, and unpaid balances.' },
-      calendar: { title: 'Availability Calendar', sub: 'View booked days automatically and block off personal or unavailable days.' },
-      tasks: { title: 'Tasks & Client Follow-Ups', sub: 'Keep track of daily business to-dos, invoice reminders, and client prep tasks.' }
+      calMonth: new Date().getMonth(),
+      calSelectedDate: new Date().toISOString().split('T')[0],
+      clients: [],
+      income: [],
+      expenses: [],
+      trips: [],
+      tasks: [],
+      blockedDates: {},
+      settings: {
+        homeBase: '',
+        rateTier1: 0.73,
+        rateTier2: 0.67
+      },
+      unsubscribers: []
     };
-// ... existing code ... -->
-    function initDefaultDates() {
-      document.getElementById('trip-date-input').value = todayStr;
-      document.getElementById('inc-start-date').value = todayStr;
-      document.getElementById('exp-date').value = todayStr;
-      const taskDueEl = document.getElementById('task-due-input');
-      if (taskDueEl) taskDueEl.value = todayStr;
+
+    // ==================== 3. HELPER & FORMATTING UTILITIES ====================
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-slate-900 text-white border-slate-800',
+        error: 'bg-rose-600 text-white border-rose-700',
+        info: 'bg-indigo-600 text-white border-indigo-700'
+      };
+      toast.className = `${colors[type] || colors.success} pointer-events-auto border px-4 py-3 rounded-2xl shadow-lg text-xs font-semibold flex items-center justify-between gap-3 transition-all duration-200`;
+      toast.innerHTML = `<span>${escapeHTML(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 220);
+      }, 3200);
     }
 
-    function populateClientDropdowns() {
-      const clientOpts = state.clients.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('');
+    function askConfirm(title, message, okLabel = 'Delete') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        document.getElementById('confirm-title').textContent = title;
+        document.getElementById('confirm-message').textContent = message;
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+        okBtn.textContent = okLabel;
+        modal.classList.remove('hidden');
 
-      document.getElementById('inc-client').innerHTML = `<option value="">Select a client...</option>${clientOpts}`;
-      document.getElementById('trip-client-select').innerHTML = `<option value="">General / No Client</option>${clientOpts}`;
-      const taskClientSel = document.getElementById('task-client-select');
-      if (taskClientSel) {
-        taskClientSel.innerHTML = `<option value="">General / Internal</option>${clientOpts}`;
+        const cleanup = (result) => {
+          modal.classList.add('hidden');
+          okBtn.onclick = null;
+          cancelBtn.onclick = null;
+          resolve(result);
+        };
+        okBtn.onclick = () => cleanup(true);
+        cancelBtn.onclick = () => cleanup(false);
+      });
+    }
+
+    function formatCurrency(val) {
+      const num = Number(val) || 0;
+      return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(num);
+    }
+
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function filterByTaxYear(items, dateField) {
+      const yr = String(state.selectedYear);
+      return (items || []).filter((item) => {
+        const d = item[dateField] || '';
+        return d.startsWith(yr);
+      });
+    }
+
+    function calculateMileageDeduction(totalKm) {
+      const km = Math.max(0, Number(totalKm) || 0);
+      const r1 = Number(state.settings.rateTier1) || 0.73;
+      const r2 = Number(state.settings.rateTier2) || 0.67;
+      if (km <= 5000) return km * r1;
+      return 5000 * r1 + (km - 5000) * r2;
+    }
+
+    function getUserCollectionRef(uid, colName) {
+      if (useSelfHostRootPath) {
+        return collection(db, 'users', uid, colName);
       }
-
-      const addrClients = state.clients.filter(c => c.address && c.address.trim());
-      document.getElementById('trip-client-autofill').innerHTML =
-        `<option value="">Autofill from Client...</option>` +
-        addrClients.map(c => `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join('');
+      return collection(db, 'artifacts', appId, 'users', uid, colName);
     }
 
-    // ==================== 7. RENDER ALL VIEWS ====================
-    function renderAllViews() {
-      renderDashboard();
-      renderMileageTable();
-      renderIncomeTable();
-      renderExpensesView();
-      renderClientsGrid();
-      renderCalendar();
-      renderTasksView();
+    function getUserDocRef(uid, colName, docId) {
+      if (useSelfHostRootPath) {
+        return doc(db, 'users', uid, colName, docId);
+      }
+      return doc(db, 'artifacts', appId, 'users', uid, colName, docId);
+    }
+
+    // ==================== 4. FIREBASE CONFIG PARSER & SETUP MODAL ====================
+    function parseFirebaseConfigInput(rawText) {
+      const cleaned = rawText.trim();
+      if (!cleaned) throw new Error('Please paste your firebaseConfig object.');
+      try {
+        return JSON.parse(cleaned);
+      } catch (_) {
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('Could not find a valid { ... } configuration object.');
+        const jsonLike = match[0]
+          .replace(/\/\/.*$/gm, '')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+          .replace(/'/g, '"')
+          .replace(/,\s*}/g, '}');
+        const parsed = JSON.parse(jsonLike);
+        if (!parsed.apiKey || !parsed.projectId) {
+          throw new Error('Config must include at least apiKey and projectId.');
+        }
+        return parsed;
+      }
+    }
+
+    // ==================== 5. AUTH INITIALIZATION & FALLBACK GUARD ====================
+    function showLoginScreenUI() {
+      const loadingEl = document.getElementById('auth-loading-screen');
+      const loginEl = document.getElementById('login-screen');
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (loginEl) loginEl.classList.remove('hidden');
       lucide.createIcons();
     }
 
-    // -------------------- TAB 1: DASHBOARD --------------------
-    function renderDashboard() {
-      const yrIncome = filterByTaxYear(state.income, 'startDate');
-      const yrExpenses = filterByTaxYear(state.expenses, 'date');
-      const yrMileage = filterByTaxYear(state.mileage, 'date');
-
-      const paidItems = yrIncome.filter(i => i.status === 'Paid');
-      const unpaidItems = yrIncome.filter(i => i.status !== 'Paid');
-
-      const collectedTotal = paidItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
-      const unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
-      const expensesTotal = yrExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-      const netProfit = collectedTotal - expensesTotal;
-
-      const totalKms = yrMileage.reduce((sum, m) => sum + (parseFloat(m.distanceKm) || 0), 0);
-      const estDeduction = calculateMileageDeduction(totalKms);
-
-      document.getElementById('kpi-collected').textContent = formatCurrency(collectedTotal);
-      document.getElementById('kpi-collected-sub').textContent = `${paidItems.length} paid invoice${paidItems.length === 1 ? '' : 's'}`;
-
-      document.getElementById('kpi-unpaid').textContent = formatCurrency(unpaidTotal);
-      document.getElementById('kpi-unpaid-sub').textContent = `${unpaidItems.length} awaiting payment`;
-
-      document.getElementById('kpi-expenses').textContent = formatCurrency(expensesTotal);
-      document.getElementById('kpi-expenses-sub').textContent = `${yrExpenses.length} logged receipt${yrExpenses.length === 1 ? '' : 's'}`;
-
-      const netEl = document.getElementById('kpi-net');
-      netEl.textContent = formatCurrency(netProfit);
-      netEl.className = `text-2xl font-extrabold mt-3 ${netProfit >= 0 ? 'text-indigo-600' : 'text-rose-600'}`;
-
-      document.getElementById('kpi-kms').textContent = `${totalKms.toFixed(1)} km`;
-      document.getElementById('kpi-deduction').textContent = `Est. ${formatCurrency(estDeduction)} deduction`;
-
-      // Sidebar unpaid badge (across all years so nothing gets forgotten)
-      const allUnpaidCount = state.income.filter(i => i.status !== 'Paid').length;
-      const badgeEl = document.getElementById('nav-unpaid-badge');
-      if (allUnpaidCount > 0) {
-        badgeEl.textContent = allUnpaidCount;
-        badgeEl.classList.remove('hidden');
-      } else {
-        badgeEl.classList.add('hidden');
+    const authBootTimeout = setTimeout(() => {
+      if (!state.user) {
+        showLoginScreenUI();
       }
+    }, 2500);
 
-      // Unpaid Invoices Quick Action List
-      const unpaidListEl = document.getElementById('dash-unpaid-list');
-      const allUnpaid = state.income.filter(i => i.status !== 'Paid');
-      if (allUnpaid.length === 0) {
-        unpaidListEl.innerHTML = `
-          <div class="p-8 text-center">
-            <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
-              <i data-lucide="check" class="w-5 h-5"></i>
-            </div>
-            <p class="text-sm font-semibold text-slate-800">All caught up!</p>
-            <p class="text-xs text-slate-500 mt-0.5">No unpaid invoices outstanding.</p>
-          </div>`;
-      } else {
-        unpaidListEl.innerHTML = allUnpaid.slice(0, 6).map(item => `
-          <div class="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-xl transition">
-            <div class="min-w-0">
-              <p class="text-sm font-bold text-slate-900 truncate">${escapeHTML(item.clientName || 'Client')}</p>
-              <p class="text-xs text-slate-500 truncate">${escapeHTML(item.service)} • ${escapeHTML(item.startDate)}</p>
-            </div>
-            <div class="flex items-center gap-3 shrink-0">
-              <span class="text-sm font-extrabold text-amber-600">${formatCurrency(item.amount)}</span>
-              <button onclick="toggleInvoiceStatus('${item.id}', 'Unpaid')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-2xs">
-                Mark Paid
-              </button>
-            </div>
-          </div>
-        `).join('');
-      }
-
-      // Upcoming Bookings
-      const upcomingEl = document.getElementById('dash-upcoming-list');
-      const upcoming = [...state.income]
-        .filter(i => (i.endDate || i.startDate) >= todayStr)
-        .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
-        .slice(0, 4);
-
-      if (upcoming.length === 0) {
-        upcomingEl.innerHTML = `<p class="p-5 text-xs text-slate-500 text-center">No upcoming bookings scheduled.</p>`;
-      } else {
-        upcomingEl.innerHTML = upcoming.map(b => `
-          <div class="p-3 flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <p class="text-xs font-bold text-slate-900 truncate">${escapeHTML(b.clientName)}</p>
-              <p class="text-[11px] text-slate-500 truncate">${escapeHTML(b.service)}</p>
-            </div>
-            <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold shrink-0">
-              ${escapeHTML(b.startDate)}
-            </span>
-          </div>
-        `).join('');
-      }
-
-      // Recent Mileage Trips
-      const recentTripsEl = document.getElementById('dash-trips-list');
-      const recentTrips = yrMileage.slice(0, 4);
-      if (recentTrips.length === 0) {
-        recentTripsEl.innerHTML = `<p class="p-5 text-xs text-slate-500 text-center">No trips logged for this period.</p>`;
-      } else {
-        recentTripsEl.innerHTML = recentTrips.map(t => `
-          <div class="p-3 flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <p class="text-xs font-bold text-slate-900 truncate">${escapeHTML(t.purpose || 'Business Trip')}</p>
-              <p class="text-[11px] text-slate-500 truncate">${escapeHTML(t.date)}${t.clientName ? ' • ' + escapeHTML(t.clientName) : ''}</p>
-            </div>
-            <span class="text-xs font-extrabold text-slate-800 shrink-0">${Number(t.distanceKm).toFixed(1)} km</span>
-          </div>
-        `).join('');
-      }
-
-      // Open Tasks Summary
-      const openTasks = state.tasks.filter(t => !t.completed);
-      const taskBadge = document.getElementById('nav-tasks-badge');
-      if (taskBadge) {
-        if (openTasks.length > 0) {
-          taskBadge.textContent = openTasks.length;
-          taskBadge.classList.remove('hidden');
+    if (!isFirebaseConfigured || !auth) {
+      clearTimeout(authBootTimeout);
+      showLoginScreenUI();
+    } else {
+      onAuthStateChanged(auth, (user) => {
+        clearTimeout(authBootTimeout);
+        if (user) {
+          state.user = user;
+          document.getElementById('auth-loading-screen').classList.add('hidden');
+          document.getElementById('login-screen').classList.add('hidden');
+          document.getElementById('app-shell').classList.remove('hidden');
+          document.getElementById('user-name').textContent = user.displayName || 'Business Owner';
+          document.getElementById('user-email').textContent = user.email || 'Cloud Workspace';
+          if (user.photoURL) {
+            document.getElementById('user-avatar').src = user.photoURL;
+          }
+          initFirestoreListeners(user.uid);
         } else {
-          taskBadge.classList.add('hidden');
+          state.user = null;
+          document.getElementById('app-shell').classList.add('hidden');
+          showLoginScreenUI();
         }
-      }
-
-      const dashTasksEl = document.getElementById('dash-tasks-list');
-      if (dashTasksEl) {
-        if (openTasks.length === 0) {
-          dashTasksEl.innerHTML = `<p class="p-5 text-xs text-slate-500 text-center">No open tasks. Enjoy your day!</p>`;
-        } else {
-          dashTasksEl.innerHTML = openTasks.slice(0, 4).map(t => `
-            <div class="p-3 flex items-center justify-between gap-2">
-              <button type="button" onclick="toggleTaskComplete('${t.id}', false)" class="flex items-center gap-2.5 min-w-0 text-left group">
-                <span class="w-4 h-4 rounded border border-slate-300 group-hover:border-indigo-600 flex items-center justify-center shrink-0"></span>
-                <div class="min-w-0">
-                  <p class="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600">${escapeHTML(t.title)}</p>
-                  <p class="text-[11px] text-slate-500 truncate">${t.dueDate ? 'Due ' + escapeHTML(t.dueDate) : 'No due date'}${t.clientName ? ' • ' + escapeHTML(t.clientName) : ''}</p>
-                </div>
-              </button>
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 ${
-                t.priority === 'High' ? 'bg-rose-100 text-rose-700' : t.priority === 'Low' ? 'bg-slate-100 text-slate-600' : 'bg-amber-100 text-amber-800'
-              }">${escapeHTML(t.priority || 'Medium')}</span>
-            </div>
-          `).join('');
-        }
-      }
-    }
-      const dayBookingsEl = document.getElementById('cal-day-bookings');
-      if (selBookings.length === 0) {
-        dayBookingsEl.innerHTML = `<p class="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">No bookings scheduled for this day.</p>`;
-      } else {
-        dayBookingsEl.innerHTML = selBookings.map(b => `
-          <div class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
-            <div class="min-w-0">
-              <p class="text-xs font-bold text-slate-900 truncate">${escapeHTML(b.clientName)}</p>
-              <p class="text-[11px] text-slate-600 truncate">${escapeHTML(b.service)}</p>
-            </div>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${b.status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}">
-              ${escapeHTML(b.status)} • ${formatCurrency(b.amount)}
-            </span>
-          </div>
-        `).join('');
-      }
-    }
-
-    // -------------------- TAB 7: TASKS & FOLLOW-UPS --------------------
-    document.getElementById('task-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!state.user) return;
-
-      const clientId = document.getElementById('task-client-select').value;
-      const clientObj = state.clients.find(c => c.id === clientId);
-
-      const payload = {
-        title: document.getElementById('task-title-input').value.trim(),
-        dueDate: document.getElementById('task-due-input').value || '',
-        priority: document.getElementById('task-priority-input').value || 'Medium',
-        clientId: clientId || '',
-        clientName: clientObj ? clientObj.name : '',
-        completed: false,
-        createdAt: new Date().toISOString()
-      };
-
-      try {
-        await addDoc(userColRef(state.user.uid, 'tasks'), payload);
-        document.getElementById('task-title-input').value = '';
-        showToast('Task added to your checklist!');
-      } catch (err) {
-        showToast('Failed to add task: ' + err.message, 'error');
-      }
-    });
-
-    document.querySelectorAll('.task-filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.taskFilter = btn.dataset.filter;
-        document.querySelectorAll('.task-filter-btn').forEach(b => {
-          b.className = b.dataset.filter === state.taskFilter
-            ? 'task-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white'
-            : 'task-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200';
-        });
-        renderTasksView();
-        lucide.createIcons();
       });
-    });
-
-    window.toggleTaskComplete = async function(id, currentCompleted) {
-      if (!state.user) return;
-      try {
-        await updateDoc(userDocRef(state.user.uid, 'tasks', id), { completed: !currentCompleted });
-        showToast(!currentCompleted ? 'Task completed!' : 'Task reopened', !currentCompleted ? 'success' : 'info');
-      } catch (err) {
-        showToast('Failed to update task: ' + err.message, 'error');
-      }
-    };
-
-    function renderTasksView() {
-      const container = document.getElementById('tasks-list-container');
-      const summaryEl = document.getElementById('tasks-summary-text');
-      if (!container || !summaryEl) return;
-
-      const openCount = state.tasks.filter(t => !t.completed).length;
-      summaryEl.textContent = `${openCount} open task${openCount === 1 ? '' : 's'}`;
-
-      let list = state.tasks;
-      if (state.taskFilter === 'Open') list = list.filter(t => !t.completed);
-      if (state.taskFilter === 'Completed') list = list.filter(t => t.completed);
-
-      if (list.length === 0) {
-        container.innerHTML = `<div class="p-10 text-center text-sm text-slate-500">No tasks in this view. Add a to-do above to stay organized!</div>`;
-        return;
-      }
-
-      container.innerHTML = list.map(t => {
-        const isOverdue = !t.completed && t.dueDate && t.dueDate < todayStr;
-        const prioStyle = t.priority === 'High'
-          ? 'bg-rose-100 text-rose-700'
-          : t.priority === 'Low'
-            ? 'bg-slate-100 text-slate-600'
-            : 'bg-amber-100 text-amber-800';
-
-        return `
-          <div class="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 transition">
-            <div class="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
-              <button type="button" onclick="toggleTaskComplete('${t.id}', ${Boolean(t.completed)})" class="w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition ${
-                t.completed ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 hover:border-indigo-600 bg-white'
-              }">
-                ${t.completed ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}
-              </button>
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold ${t.completed ? 'line-through text-slate-400' : 'text-slate-900'}">${escapeHTML(t.title)}</p>
-                <div class="flex flex-wrap items-center gap-2 mt-1 text-xs">
-                  ${t.dueDate ? `<span class="${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-500'}">Due: ${escapeHTML(t.dueDate)}${isOverdue ? ' (Overdue)' : ''}</span>` : ''}
-                  ${t.clientName ? `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-semibold">${escapeHTML(t.clientName)}</span>` : ''}
-                </div>
-              </div>
-            </div>
-            <div class="flex items-center gap-2.5 shrink-0">
-              <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${prioStyle}">${escapeHTML(t.priority || 'Medium')}</span>
-              <button onclick="deleteDocItem('tasks', '${t.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition" title="Delete Task">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // ==================== 8. DELETE HELPER ====================
-    window.deleteDocItem = async function(colName, id) {
-      if (!state.user) return;
-      const confirmed = await askConfirm(
-        'Delete Record',
-        'Are you sure you want to permanently delete this entry? This cannot be undone.'
-      );
-      if (!confirmed) return;
-
-      try {
-        await deleteDoc(userDocRef(state.user.uid, colName, id));
-        showToast('Entry deleted.');
-      } catch (err) {
-        showToast('Failed to delete: ' + err.message, 'error');
-      }
-    };
-
-    // ==================== 9. MILEAGE RATES SETTINGS MODAL ====================
-    window.openSettingsModal = function() {
-      document.getElementById('rate-tier1-input').value = state.settings.tier1Rate;
-      document.getElementById('rate-tier2-input').value = state.settings.tier2Rate;
-      document.getElementById('settings-modal').classList.remove('hidden');
-    };
-
-    window.closeSettingsModal = function() {
-      document.getElementById('settings-modal').classList.add('hidden');
-    };
-
-    document.getElementById('rates-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!state.user) return;
-      const tier1Rate = parseFloat(document.getElementById('rate-tier1-input').value) || 0.73;
-      const tier2Rate = parseFloat(document.getElementById('rate-tier2-input').value) || 0.67;
-
-      try {
-        await setDoc(userDocRef(state.user.uid, 'settings', 'profile'), {
-          homeBase: state.settings.homeBase,
-          tier1Rate,
-          tier2Rate
-        }, { merge: true });
-        closeSettingsModal();
-        showToast('Mileage deduction rates updated!');
-      } catch (err) {
-        showToast('Failed to save rates: ' + err.message, 'error');
-      }
-    });
-
-    // ==================== 9B. SELF-HOST FIREBASE CONFIG MODAL ====================
-    function parseFirebaseConfigInput(rawText) {
-      const cleaned = rawText.trim();
-      if (!cleaned) throw new Error('Please paste your firebaseConfig snippet.');
-
-      // Extract the {...} object block if user pasted JS like `const firebaseConfig = { ... };`
-      const firstBrace = cleaned.indexOf('{');
-      const lastBrace = cleaned.lastIndexOf('}');
-      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-        throw new Error('Could not find a valid { ... } configuration object.');
-      }
-      let objBody = cleaned.slice(firstBrace, lastBrace + 1);
-
-      // Convert unquoted JS object keys (e.g., apiKey: "...") to valid JSON keys ("apiKey": "...")
-      objBody = objBody
-        .replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '') // strip JS comments
-        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')
-        .replace(/'/g, '"')
-        .replace(/,\s*}/g, '}');
-
-      const parsed = JSON.parse(objBody);
-      if (!parsed.apiKey || !parsed.projectId) {
-        throw new Error('Config must include at least "apiKey" and "projectId".');
-      }
-      return parsed;
     }
 
     window.openFirebaseSetupModal = function() {
+      const modal = document.getElementById('firebase-setup-modal');
       const statusEl = document.getElementById('firebase-config-status');
       const textarea = document.getElementById('firebase-config-textarea');
 
-      const labels = {
-        'saved-custom': `Connected to Your Custom Firebase (${firebaseConfig.projectId})`,
-        'hardcoded-custom': `Connected via CUSTOM_FIREBASE_CONFIG (${firebaseConfig.projectId})`,
-        'preview-sandbox': 'Connected to Built-in Preview Cloud Sandbox',
-        'demo-fallback': 'No Custom Firebase Connected Yet (Paste below to self-host)'
-      };
-      statusEl.textContent = labels[configSourceMode] || labels['demo-fallback'];
-
-      if (savedCustomConfig) {
-        textarea.value = JSON.stringify(savedCustomConfig, null, 2);
+      if (configSourceMode === 'saved-custom' || configSourceMode === 'hardcoded-custom') {
+        statusEl.textContent = `Active Mode: Connected to your Firebase project (${firebaseConfig.projectId})`;
+        textarea.value = JSON.stringify(firebaseConfig, null, 2);
+      } else if (configSourceMode === 'preview-sandbox') {
+        statusEl.textContent = 'Active Mode: Built-in Preview Sandbox (Paste your own config below when deploying to a live URL)';
+        textarea.value = '';
+      } else {
+        statusEl.textContent = 'Active Mode: Not yet connected (Paste your Firebase config below to enable Google Sign-In)';
+        textarea.value = '';
       }
-      document.getElementById('firebase-setup-modal').classList.remove('hidden');
+      modal.classList.remove('hidden');
       lucide.createIcons();
     };
 
@@ -1623,26 +1355,1116 @@
     document.getElementById('firebase-config-form').addEventListener('submit', (e) => {
       e.preventDefault();
       try {
-        const parsed = parseFirebaseConfigInput(document.getElementById('firebase-config-textarea').value);
+        const raw = document.getElementById('firebase-config-textarea').value;
+        const parsed = parseFirebaseConfigInput(raw);
         window.localStorage.setItem(STORAGE_KEY_FB, JSON.stringify(parsed));
-        showToast('Firebase configuration saved! Reloading...');
-        setTimeout(() => window.location.reload(), 650);
+        showToast('Firebase config saved! Reloading app...', 'success');
+        setTimeout(() => window.location.reload(), 600);
       } catch (err) {
-        showToast(err.message, 'error');
+        showToast(err.message || 'Invalid Firebase configuration format.', 'error');
       }
     });
 
     document.getElementById('clear-firebase-config-btn').addEventListener('click', () => {
       window.localStorage.removeItem(STORAGE_KEY_FB);
-      showToast('Custom Firebase configuration cleared. Reloading...', 'info');
-      setTimeout(() => window.location.reload(), 650);
+      showToast('Custom Firebase config cleared. Reloading...', 'info');
+      setTimeout(() => window.location.reload(), 600);
     });
 
-    // ==================== 10. YEAR-END TAX CSV EXPORTS ====================
+    // ==================== 6. SIGN-IN & SIGN-OUT HANDLERS ====================
+    function enterLocalDemoSession() {
+      state.user = {
+        uid: 'local-demo-user',
+        displayName: 'Demo Business Owner',
+        email: 'demo@biztrack.local',
+        isLocalDemo: true
+      };
+      document.getElementById('auth-loading-screen').classList.add('hidden');
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app-shell').classList.remove('hidden');
+      document.getElementById('user-name').textContent = state.user.displayName;
+      document.getElementById('user-email').textContent = 'Local Browser Demo';
+      loadLocalDemoData();
+      renderAllViews();
+      showToast('Signed into local demo mode.', 'info');
+    }
+
+    document.getElementById('google-signin-btn').addEventListener('click', async () => {
+      if (!isFirebaseConfigured || !auth) {
+        openFirebaseSetupModal();
+        showToast('Connect your free Firebase project first to enable Google Sign-In.', 'info');
+        return;
+      }
+      const provider = new GoogleAuthProvider();
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (err) {
+        console.warn('Popup sign-in issue:', err.code);
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+          try {
+            await signInWithRedirect(auth, provider);
+            return;
+          } catch (_) {}
+        }
+        const errBox = document.getElementById('auth-error-box');
+        const errText = document.getElementById('auth-error-text');
+        errText.textContent = `Google Sign-In notice (${err.code || 'blocked'}). Make sure this domain is added to Firebase Authorized Domains, or use an instant session below.`;
+        errBox.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('fallback-signin-btn').addEventListener('click', async () => {
+      if (isFirebaseConfigured && auth) {
+        try {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+          return;
+        } catch (_) {}
+      }
+      enterLocalDemoSession();
+    });
+
+    document.getElementById('guest-demo-btn').addEventListener('click', () => {
+      enterLocalDemoSession();
+    });
+
+    document.getElementById('signout-btn').addEventListener('click', async () => {
+      state.unsubscribers.forEach((unsub) => unsub());
+      state.unsubscribers = [];
+      if (auth && !state.user?.isLocalDemo) {
+        await signOut(auth);
+      } else {
+        state.user = null;
+        document.getElementById('app-shell').classList.add('hidden');
+        showLoginScreenUI();
+      }
+    });
+
+    // ==================== 7. FIRESTORE SYNC & LOCAL FALLBACK ====================
+    const LOCAL_DEMO_STORAGE_KEY = 'biztrack_local_demo_data_v1';
+
+    function saveLocalDemoData() {
+      if (!state.user?.isLocalDemo) return;
+      const payload = {
+        clients: state.clients,
+        income: state.income,
+        expenses: state.expenses,
+        trips: state.trips,
+        tasks: state.tasks,
+        blockedDates: state.blockedDates,
+        settings: state.settings
+      };
+      window.localStorage.setItem(LOCAL_DEMO_STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function loadLocalDemoData() {
+      try {
+        const raw = window.localStorage.getItem(LOCAL_DEMO_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state.clients = parsed.clients || [];
+          state.income = parsed.income || [];
+          state.expenses = parsed.expenses || [];
+          state.trips = parsed.trips || [];
+          state.tasks = parsed.tasks || [];
+          state.blockedDates = parsed.blockedDates || {};
+          state.settings = { ...state.settings, ...(parsed.settings || {}) };
+        }
+      } catch (_) {}
+    }
+
+    function initFirestoreListeners(uid) {
+      state.unsubscribers.forEach((unsub) => unsub());
+      state.unsubscribers = [];
+
+      const collections = ['clients', 'income', 'expenses', 'trips', 'tasks'];
+      collections.forEach((colName) => {
+        const unsub = onSnapshot(
+          getUserCollectionRef(uid, colName),
+          (snap) => {
+            state[colName] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            renderAllViews();
+          },
+          (err) => {
+            console.error(`Error syncing ${colName}:`, err);
+            if (err.code === 'permission-denied') {
+              showToast('Firestore permission denied. Check your email rule in Firebase Console.', 'error');
+            }
+          }
+        );
+        state.unsubscribers.push(unsub);
+      });
+
+      const unsubBlocked = onSnapshot(getUserCollectionRef(uid, 'blockedDates'), (snap) => {
+        const map = {};
+        snap.docs.forEach((d) => {
+          map[d.id] = d.data();
+        });
+        state.blockedDates = map;
+        renderAllViews();
+      });
+      state.unsubscribers.push(unsubBlocked);
+
+      const unsubSettings = onSnapshot(getUserDocRef(uid, 'settings', 'general'), (docSnap) => {
+        if (docSnap.exists()) {
+          state.settings = { ...state.settings, ...docSnap.data() };
+          document.getElementById('home-base-input').value = state.settings.homeBase || '';
+        }
+        renderAllViews();
+      });
+      state.unsubscribers.push(unsubSettings);
+    }
+
+    async function dbAdd(colName, data) {
+      if (state.user?.isLocalDemo) {
+        const id = 'loc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        state[colName].push({ id, ...data });
+        saveLocalDemoData();
+        renderAllViews();
+        return id;
+      }
+      const docRef = await addDoc(getUserCollectionRef(state.user.uid, colName), data);
+      return docRef.id;
+    }
+
+    async function dbSet(colName, docId, data) {
+      if (state.user?.isLocalDemo) {
+        if (colName === 'blockedDates') {
+          state.blockedDates[docId] = data;
+        } else if (colName === 'settings') {
+          state.settings = { ...state.settings, ...data };
+        }
+        saveLocalDemoData();
+        renderAllViews();
+        return;
+      }
+      await setDoc(getUserDocRef(state.user.uid, colName, docId), data, { merge: true });
+    }
+
+    async function dbUpdate(colName, docId, data) {
+      if (state.user?.isLocalDemo) {
+        const idx = state[colName].findIndex((x) => x.id === docId);
+        if (idx !== -1) state[colName][idx] = { ...state[colName][idx], ...data };
+        saveLocalDemoData();
+        renderAllViews();
+        return;
+      }
+      await updateDoc(getUserDocRef(state.user.uid, colName, docId), data);
+    }
+
+    async function dbDelete(colName, docId) {
+      if (state.user?.isLocalDemo) {
+        if (colName === 'blockedDates') {
+          delete state.blockedDates[docId];
+        } else {
+          state[colName] = state[colName].filter((x) => x.id !== docId);
+        }
+        saveLocalDemoData();
+        renderAllViews();
+        return;
+      }
+      await deleteDoc(getUserDocRef(state.user.uid, colName, docId));
+    }
+
+    // ==================== 8. NAVIGATION & TAX YEAR SETUP ====================
+    const tabMeta = {
+      dashboard: { title: 'Dashboard & Tax Summary', sub: 'Real-time financial overview, unpaid balances, and CRA mileage deductions.' },
+      mileage: { title: 'Mileage (Auto Map)', sub: 'Automatic route calculation via OpenStreetMap & OSRM driving directions.' },
+      income: { title: 'Income & Invoices', sub: 'Track client payments, unpaid balances, and booking dates.' },
+      expenses: { title: 'Business Expenses', sub: 'Categorize tax-deductible receipts and vendor expenses.' },
+      clients: { title: 'Clients Directory', sub: 'Manage customer contact details, addresses, and service notes.' },
+      calendar: { title: 'Availability Calendar', sub: 'Track booked days, free days, and manually blocked off dates.' },
+      tasks: { title: 'Tasks & Follow-Ups', sub: 'Stay on top of invoice reminders, prep work, and client to-dos.' }
+    };
+
+    window.switchTab = function(tabName) {
+      state.activeTab = tabName;
+      document.querySelectorAll('.tab-panel').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.id !== `tab-${tabName}`);
+      });
+      document.querySelectorAll('.nav-btn').forEach((btn) => {
+        const active = btn.dataset.tab === tabName;
+        btn.className = `nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
+          active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+        }`;
+      });
+      if (tabMeta[tabName]) {
+        document.getElementById('page-title').textContent = tabMeta[tabName].title;
+        document.getElementById('page-subtitle').textContent = tabMeta[tabName].sub;
+      }
+      closeMobileSidebar();
+      if (tabName === 'mileage') {
+        initLeafletMap();
+        setTimeout(() => {
+          if (leafletMap) leafletMap.invalidateSize();
+        }, 120);
+      }
+    };
+
+    document.querySelectorAll('.nav-btn').forEach((btn) => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    function closeMobileSidebar() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+      document.getElementById('sidebar-backdrop').classList.add('hidden');
+    }
+
+    document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('-translate-x-full');
+      document.getElementById('sidebar-backdrop').classList.remove('hidden');
+    });
+    document.getElementById('close-sidebar-btn').addEventListener('click', closeMobileSidebar);
+    document.getElementById('sidebar-backdrop').addEventListener('click', closeMobileSidebar);
+
+    function initYearSelectors() {
+      const years = [];
+      for (let y = currentYear + 1; y >= currentYear - 4; y--) years.push(y);
+      ['desktop-year-select', 'mobile-year-select'].forEach((id) => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = years.map((y) => `<option value="${y}" ${y === state.selectedYear ? 'selected' : ''}>${y}</option>`).join('');
+        sel.addEventListener('change', (e) => {
+          state.selectedYear = Number(e.target.value);
+          document.getElementById('desktop-year-select').value = state.selectedYear;
+          document.getElementById('mobile-year-select').value = state.selectedYear;
+          renderAllViews();
+        });
+      });
+    }
+
+    // Set default dates on forms
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('trip-date-input').value = todayStr;
+    document.getElementById('inc-start-date').value = todayStr;
+    document.getElementById('exp-date').value = todayStr;
+    document.getElementById('task-due-input').value = todayStr;
+
+    // ==================== 9. LEAFLET MAP & AUTOMATIC ROUTE CALCULATION ====================
+    let leafletMap = null;
+    let routeLayer = null;
+    let markersLayer = null;
+    let baseOneWayKm = 0;
+
+    function initLeafletMap() {
+      if (leafletMap) return;
+      const mapEl = document.getElementById('mileage-map');
+      if (!mapEl || typeof L === 'undefined') return;
+      leafletMap = L.map('mileage-map').setView([49.2827, -123.1207], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(leafletMap);
+      markersLayer = L.layerGroup().addTo(leafletMap);
+    }
+
+    async function geocodeAddress(address) {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const data = await res.json();
+      if (!data || !data.length) throw new Error(`Could not locate address: "${address}"`);
+      return {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon),
+        displayName: data[0].display_name
+      };
+    }
+
+    document.getElementById('save-home-base-btn').addEventListener('click', async () => {
+      const homeBase = document.getElementById('home-base-input').value.trim();
+      await dbSet('settings', 'general', { homeBase });
+      showToast('Home Base address saved!');
+    });
+
+    document.getElementById('use-home-btn').addEventListener('click', () => {
+      const home = document.getElementById('home-base-input').value.trim() || state.settings.homeBase;
+      if (!home) {
+        showToast('Enter and save a Home Base address above first.', 'info');
+        return;
+      }
+      document.getElementById('trip-start-input').value = home;
+    });
+
+    document.getElementById('use-gps-btn').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showToast('Geolocation is not supported by your browser.', 'error');
+        return;
+      }
+      const statusEl = document.getElementById('route-status-text');
+      statusEl.textContent = 'Detecting current GPS coordinates...';
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+            const revData = await revRes.json();
+            document.getElementById('trip-start-input').value = revData.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+            statusEl.textContent = 'Current location loaded.';
+          } catch (_) {
+            document.getElementById('trip-start-input').value = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+            statusEl.textContent = 'GPS coordinates loaded.';
+          }
+        },
+        () => {
+          statusEl.textContent = 'Unable to access GPS. Please allow location permissions or enter address manually.';
+        }
+      );
+    });
+
+    document.getElementById('trip-client-autofill').addEventListener('change', (e) => {
+      const clientId = e.target.value;
+      const client = state.clients.find((c) => c.id === clientId);
+      if (client) {
+        if (client.address) {
+          document.getElementById('trip-dest-input').value = client.address;
+        } else {
+          showToast(`${client.name} does not have a saved street address yet.`, 'info');
+        }
+        document.getElementById('trip-client-select').value = client.id;
+        if (!document.getElementById('trip-purpose-input').value) {
+          document.getElementById('trip-purpose-input').value = `Client appointment — ${client.name}`;
+        }
+      }
+    });
+
+    document.getElementById('trip-roundtrip-check').addEventListener('change', (e) => {
+      if (baseOneWayKm > 0) {
+        const mult = e.target.checked ? 2 : 1;
+        document.getElementById('trip-km-input').value = (baseOneWayKm * mult).toFixed(1);
+      }
+    });
+
+    document.getElementById('calculate-route-btn').addEventListener('click', async () => {
+      const startAddr = document.getElementById('trip-start-input').value.trim();
+      const destAddr = document.getElementById('trip-dest-input').value.trim();
+      const statusEl = document.getElementById('route-status-text');
+
+      if (!startAddr || !destAddr) {
+        showToast('Please enter both a start and destination address.', 'error');
+        return;
+      }
+
+      initLeafletMap();
+      statusEl.textContent = 'Geocoding addresses & calculating fastest driving route...';
+
+      try {
+        const [startPt, destPt] = await Promise.all([geocodeAddress(startAddr), geocodeAddress(destAddr)]);
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lon},${startPt.lat};${destPt.lon},${destPt.lat}?overview=full&geometries=geojson`;
+        const routeRes = await fetch(osrmUrl);
+        const routeData = await routeRes.json();
+
+        if (!routeData.routes || !routeData.routes.length) {
+          throw new Error('No driving route found between these two addresses.');
+        }
+
+        const route = routeData.routes[0];
+        baseOneWayKm = route.distance / 1000;
+        const isRoundTrip = document.getElementById('trip-roundtrip-check').checked;
+        const finalKm = (baseOneWayKm * (isRoundTrip ? 2 : 1)).toFixed(1);
+
+        document.getElementById('trip-km-input').value = finalKm;
+        const mins = Math.round(route.duration / 60);
+        statusEl.textContent = `One-way: ${baseOneWayKm.toFixed(1)} km (~${mins} min). ${isRoundTrip ? 'Round trip ×2 applied.' : ''}`;
+
+        if (leafletMap) {
+          if (routeLayer) leafletMap.removeLayer(routeLayer);
+          markersLayer.clearLayers();
+          L.marker([startPt.lat, startPt.lon]).addTo(markersLayer).bindPopup(`<strong>Start:</strong> ${escapeHTML(startAddr)}`);
+          L.marker([destPt.lat, destPt.lon]).addTo(markersLayer).bindPopup(`<strong>Destination:</strong> ${escapeHTML(destAddr)}`);
+          routeLayer = L.geoJSON(route.geometry, {
+            style: { color: '#4f46e5', weight: 5, opacity: 0.85 }
+          }).addTo(leafletMap);
+          leafletMap.fitBounds(routeLayer.getBounds(), { padding: [32, 32] });
+        }
+        showToast(`Route calculated: ${finalKm} km`);
+      } catch (err) {
+        statusEl.textContent = err.message || 'Route calculation failed. You can still enter KMs manually.';
+        showToast(err.message || 'Route error', 'error');
+      }
+    });
+
+    document.getElementById('save-trip-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const distanceKm = parseFloat(document.getElementById('trip-km-input').value) || 0;
+      if (distanceKm <= 0) {
+        showToast('Distance must be greater than 0 km.', 'error');
+        return;
+      }
+      const clientId = document.getElementById('trip-client-select').value;
+      const clientObj = state.clients.find((c) => c.id === clientId);
+      const trip = {
+        date: document.getElementById('trip-date-input').value,
+        startAddress: document.getElementById('trip-start-input').value.trim() || 'Start',
+        destAddress: document.getElementById('trip-dest-input').value.trim() || 'Destination',
+        distanceKm,
+        roundTrip: document.getElementById('trip-roundtrip-check').checked,
+        clientId: clientId || '',
+        clientName: clientObj ? clientObj.name : '',
+        purpose: document.getElementById('trip-purpose-input').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+      await dbAdd('trips', trip);
+      document.getElementById('trip-purpose-input').value = '';
+      document.getElementById('trip-km-input').value = '0';
+      document.getElementById('trip-roundtrip-check').checked = false;
+      baseOneWayKm = 0;
+      showToast('Trip saved to mileage log!');
+    });
+
+    // ==================== 10. INCOME, EXPENSES, CLIENTS, CALENDAR & TASKS HANDLERS ====================
+    document.getElementById('income-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const clientId = document.getElementById('inc-client').value;
+      const clientObj = state.clients.find((c) => c.id === clientId);
+      const startDate = document.getElementById('inc-start-date').value;
+      const endDate = document.getElementById('inc-end-date').value || startDate;
+
+      await dbAdd('income', {
+        clientId,
+        clientName: clientObj ? clientObj.name : 'Client',
+        service: document.getElementById('inc-service').value.trim(),
+        startDate,
+        endDate,
+        amount: parseFloat(document.getElementById('inc-amount').value) || 0,
+        status: document.getElementById('inc-status').value,
+        method: document.getElementById('inc-method').value,
+        createdAt: new Date().toISOString()
+      });
+      e.target.reset();
+      document.getElementById('inc-start-date').value = todayStr;
+      showToast('Income entry added!');
+    });
+
+    document.querySelectorAll('.inc-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.incomeFilter = btn.dataset.filter;
+        document.querySelectorAll('.inc-filter-btn').forEach((b) => {
+          const active = b.dataset.filter === state.incomeFilter;
+          b.className = `inc-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold ${
+            active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`;
+        });
+        renderIncomeView();
+      });
+    });
+
+    window.toggleInvoiceStatus = async function(id, currentStatus) {
+      const nextStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+      await dbUpdate('income', id, { status: nextStatus });
+      showToast(`Invoice marked as ${nextStatus}.`);
+    };
+
+    document.getElementById('expense-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await dbAdd('expenses', {
+        date: document.getElementById('exp-date').value,
+        vendor: document.getElementById('exp-vendor').value.trim(),
+        category: document.getElementById('exp-category').value,
+        amount: parseFloat(document.getElementById('exp-amount').value) || 0,
+        notes: document.getElementById('exp-notes').value.trim(),
+        createdAt: new Date().toISOString()
+      });
+      e.target.reset();
+      document.getElementById('exp-date').value = todayStr;
+      showToast('Expense logged!');
+    });
+
+    document.getElementById('exp-search-input').addEventListener('input', (e) => {
+      state.expenseSearch = e.target.value.toLowerCase();
+      renderExpensesView();
+    });
+
+    // Clients Modal
+    window.openClientModal = function(clientId = null) {
+      const modal = document.getElementById('client-modal');
+      const form = document.getElementById('client-form');
+      form.reset();
+      document.getElementById('client-edit-id').value = clientId || '';
+      if (clientId) {
+        const c = state.clients.find((x) => x.id === clientId);
+        if (c) {
+          document.getElementById('client-modal-title').textContent = 'Edit Client';
+          document.getElementById('client-name-input').value = c.name || '';
+          document.getElementById('client-email-input').value = c.email || '';
+          document.getElementById('client-phone-input').value = c.phone || '';
+          document.getElementById('client-address-input').value = c.address || '';
+          document.getElementById('client-notes-input').value = c.notes || '';
+        }
+      } else {
+        document.getElementById('client-modal-title').textContent = 'Add New Client';
+      }
+      modal.classList.remove('hidden');
+    };
+
+    window.closeClientModal = function() {
+      document.getElementById('client-modal').classList.add('hidden');
+    };
+
+    document.getElementById('client-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('client-edit-id').value;
+      const payload = {
+        name: document.getElementById('client-name-input').value.trim(),
+        email: document.getElementById('client-email-input').value.trim(),
+        phone: document.getElementById('client-phone-input').value.trim(),
+        address: document.getElementById('client-address-input').value.trim(),
+        notes: document.getElementById('client-notes-input').value.trim()
+      };
+      if (editId) {
+        await dbUpdate('clients', editId, payload);
+        showToast('Client updated!');
+      } else {
+        await dbAdd('clients', { ...payload, createdAt: new Date().toISOString() });
+        showToast('New client added!');
+      }
+      closeClientModal();
+    });
+
+    // Calendar Controls
+    document.getElementById('cal-prev-btn').addEventListener('click', () => {
+      state.calMonth--;
+      if (state.calMonth < 0) {
+        state.calMonth = 11;
+        state.calYear--;
+      }
+      renderCalendarView();
+    });
+
+    document.getElementById('cal-next-btn').addEventListener('click', () => {
+      state.calMonth++;
+      if (state.calMonth > 11) {
+        state.calMonth = 0;
+        state.calYear++;
+      }
+      renderCalendarView();
+    });
+
+    document.getElementById('cal-today-btn').addEventListener('click', () => {
+      const now = new Date();
+      state.calYear = now.getFullYear();
+      state.calMonth = now.getMonth();
+      state.calSelectedDate = now.toISOString().split('T')[0];
+      renderCalendarView();
+    });
+
+    document.getElementById('cal-toggle-block-btn').addEventListener('click', async () => {
+      const dateStr = state.calSelectedDate;
+      if (!dateStr) return;
+      if (state.blockedDates[dateStr]) {
+        await dbDelete('blockedDates', dateStr);
+        showToast(`${dateStr} marked as Free / Available.`);
+      } else {
+        await dbSet('blockedDates', dateStr, { blocked: true, updatedAt: new Date().toISOString() });
+        showToast(`${dateStr} marked as Unavailable.`);
+      }
+    });
+
+    document.getElementById('cal-quick-book-btn').addEventListener('click', () => {
+      document.getElementById('inc-start-date').value = state.calSelectedDate;
+      document.getElementById('inc-end-date').value = state.calSelectedDate;
+      switchTab('income');
+      showToast(`Ready to add booking for ${state.calSelectedDate}`, 'info');
+    });
+
+    // Tasks Handlers
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const clientId = document.getElementById('task-client-select').value;
+      const clientObj = state.clients.find((c) => c.id === clientId);
+      await dbAdd('tasks', {
+        title: document.getElementById('task-title-input').value.trim(),
+        dueDate: document.getElementById('task-due-input').value || '',
+        priority: document.getElementById('task-priority-input').value,
+        clientId: clientId || '',
+        clientName: clientObj ? clientObj.name : '',
+        completed: false,
+        createdAt: new Date().toISOString()
+      });
+      document.getElementById('task-title-input').value = '';
+      showToast('Task added!');
+    });
+
+    document.querySelectorAll('.task-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.taskFilter = btn.dataset.filter;
+        document.querySelectorAll('.task-filter-btn').forEach((b) => {
+          const active = b.dataset.filter === state.taskFilter;
+          b.className = `task-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold ${
+            active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`;
+        });
+        renderTasksView();
+      });
+    });
+
+    window.toggleTaskCompleted = async function(id, currentCompleted) {
+      await dbUpdate('tasks', id, { completed: !currentCompleted });
+    };
+
+    window.deleteRecord = async function(colName, id, label) {
+      const confirmed = await askConfirm(`Delete ${label}?`, 'This action cannot be undone.');
+      if (!confirmed) return;
+      await dbDelete(colName, id);
+      showToast(`${label} deleted.`);
+    };
+
+    // Rates Modal
+    window.openSettingsModal = function() {
+      document.getElementById('rate-tier1-input').value = state.settings.rateTier1;
+      document.getElementById('rate-tier2-input').value = state.settings.rateTier2;
+      document.getElementById('settings-modal').classList.remove('hidden');
+    };
+
+    window.closeSettingsModal = function() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    };
+
+    document.getElementById('rates-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rateTier1 = parseFloat(document.getElementById('rate-tier1-input').value) || 0.73;
+      const rateTier2 = parseFloat(document.getElementById('rate-tier2-input').value) || 0.67;
+      await dbSet('settings', 'general', { rateTier1, rateTier2 });
+      closeSettingsModal();
+      showToast('Mileage deduction rates updated!');
+    });
+
+    // ==================== 11. RENDER FUNCTIONS ====================
+    function populateClientDropdowns() {
+      const sorted = [...state.clients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const baseOptions = sorted.map((c) => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+
+      document.getElementById('inc-client').innerHTML = `<option value="">Select a client...</option>${baseOptions}`;
+      document.getElementById('trip-client-select').innerHTML = `<option value="">General / No Client</option>${baseOptions}`;
+      document.getElementById('trip-client-autofill').innerHTML = `<option value="">Autofill from Client...</option>${baseOptions}`;
+      document.getElementById('task-client-select').innerHTML = `<option value="">General / Internal</option>${baseOptions}`;
+    }
+
+    function renderDashboardView() {
+      const yrIncome = filterByTaxYear(state.income, 'startDate');
+      const yrExpenses = filterByTaxYear(state.expenses, 'date');
+      const yrTrips = filterByTaxYear(state.trips, 'date');
+
+      const paidItems = yrIncome.filter((i) => i.status === 'Paid');
+      const unpaidItems = yrIncome.filter((i) => i.status !== 'Paid');
+
+      const collectedTotal = paidItems.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      const unpaidTotal = unpaidItems.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      const expenseTotal = yrExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      const netProfit = collectedTotal - expenseTotal;
+      const totalKm = yrTrips.reduce((sum, t) => sum + (Number(t.distanceKm) || 0), 0);
+      const estDeduction = calculateMileageDeduction(totalKm);
+
+      document.getElementById('kpi-collected').textContent = formatCurrency(collectedTotal);
+      document.getElementById('kpi-collected-sub').textContent = `${paidItems.length} paid invoice${paidItems.length === 1 ? '' : 's'}`;
+      document.getElementById('kpi-unpaid').textContent = formatCurrency(unpaidTotal);
+      document.getElementById('kpi-unpaid-sub').textContent = `${unpaidItems.length} awaiting payment`;
+      document.getElementById('kpi-expenses').textContent = formatCurrency(expenseTotal);
+      document.getElementById('kpi-expenses-sub').textContent = `${yrExpenses.length} logged receipt${yrExpenses.length === 1 ? '' : 's'}`;
+      document.getElementById('kpi-net').textContent = formatCurrency(netProfit);
+      document.getElementById('kpi-kms').textContent = `${totalKm.toFixed(1)} km`;
+      document.getElementById('kpi-deduction').textContent = `Est. ${formatCurrency(estDeduction)} CRA deduction`;
+
+      // Sidebar badges
+      const unpaidBadge = document.getElementById('nav-unpaid-badge');
+      if (unpaidItems.length > 0) {
+        unpaidBadge.textContent = unpaidItems.length;
+        unpaidBadge.classList.remove('hidden');
+      } else {
+        unpaidBadge.classList.add('hidden');
+      }
+
+      const openTasks = state.tasks.filter((t) => !t.completed);
+      const tasksBadge = document.getElementById('nav-tasks-badge');
+      if (openTasks.length > 0) {
+        tasksBadge.textContent = openTasks.length;
+        tasksBadge.classList.remove('hidden');
+      } else {
+        tasksBadge.classList.add('hidden');
+      }
+
+      // Unpaid list
+      const unpaidListEl = document.getElementById('dash-unpaid-list');
+      if (!unpaidItems.length) {
+        unpaidListEl.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">All invoices for ${state.selectedYear} are paid!</div>`;
+      } else {
+        unpaidListEl.innerHTML = unpaidItems
+          .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+          .map((item) => `
+            <div class="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-xl">
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-900 truncate">${escapeHTML(item.clientName)}</p>
+                <p class="text-xs text-slate-500 truncate">${escapeHTML(item.service)} • ${escapeHTML(item.startDate)}</p>
+              </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="text-sm font-extrabold text-amber-600">${formatCurrency(item.amount)}</span>
+                <button onclick="toggleInvoiceStatus('${item.id}', 'Unpaid')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">
+                  Mark Paid
+                </button>
+              </div>
+            </div>
+          `)
+          .join('');
+      }
+
+      // Upcoming Bookings
+      const upcomingEl = document.getElementById('dash-upcoming-list');
+      const upcoming = state.income
+        .filter((i) => (i.endDate || i.startDate) >= todayStr)
+        .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+        .slice(0, 4);
+      if (!upcoming.length) {
+        upcomingEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">No upcoming bookings scheduled.</div>`;
+      } else {
+        upcomingEl.innerHTML = upcoming
+          .map((b) => `
+            <div class="p-3 flex items-center justify-between text-xs">
+              <div class="min-w-0">
+                <p class="font-bold text-slate-900 truncate">${escapeHTML(b.clientName)}</p>
+                <p class="text-slate-500 truncate">${escapeHTML(b.service)}</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-semibold shrink-0">${escapeHTML(b.startDate)}</span>
+            </div>
+          `)
+          .join('');
+      }
+
+      // Recent Trips
+      const tripsEl = document.getElementById('dash-trips-list');
+      const recentTrips = [...yrTrips].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 4);
+      if (!recentTrips.length) {
+        tripsEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">No driving trips logged for ${state.selectedYear}.</div>`;
+      } else {
+        tripsEl.innerHTML = recentTrips
+          .map((t) => `
+            <div class="p-3 flex items-center justify-between text-xs">
+              <div class="min-w-0">
+                <p class="font-bold text-slate-900 truncate">${escapeHTML(t.purpose)}</p>
+                <p class="text-slate-500 truncate">${escapeHTML(t.date)}</p>
+              </div>
+              <span class="font-extrabold text-indigo-600 shrink-0">${Number(t.distanceKm).toFixed(1)} km</span>
+            </div>
+          `)
+          .join('');
+      }
+
+      // Open Tasks
+      const dashTasksEl = document.getElementById('dash-tasks-list');
+      const topTasks = openTasks.slice(0, 4);
+      if (!topTasks.length) {
+        dashTasksEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">No open tasks.</div>`;
+      } else {
+        dashTasksEl.innerHTML = topTasks
+          .map((t) => `
+            <div class="p-3 flex items-center gap-2.5 text-xs">
+              <input type="checkbox" onchange="toggleTaskCompleted('${t.id}', false)" class="w-4 h-4 rounded text-indigo-600 cursor-pointer" />
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold text-slate-900 truncate">${escapeHTML(t.title)}</p>
+                <p class="text-slate-400">${escapeHTML(t.dueDate || 'No due date')}</p>
+              </div>
+            </div>
+          `)
+          .join('');
+      }
+    }
+
+    function renderMileageView() {
+      const yrTrips = filterByTaxYear(state.trips, 'date').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const totalKm = yrTrips.reduce((sum, t) => sum + (Number(t.distanceKm) || 0), 0);
+      const deduction = calculateMileageDeduction(totalKm);
+      document.getElementById('mileage-summary-pill').textContent = `Total: ${totalKm.toFixed(1)} km • Est. Deduction: ${formatCurrency(deduction)}`;
+
+      const tbody = document.getElementById('mileage-table-body');
+      if (!yrTrips.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-xs text-slate-400">No trips logged for ${state.selectedYear} yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = yrTrips
+        .map((t) => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">${escapeHTML(t.date)}</td>
+            <td class="py-3 px-4 text-xs text-slate-600 max-w-xs truncate">${escapeHTML(t.startAddress)} → ${escapeHTML(t.destAddress)}</td>
+            <td class="py-3 px-4">
+              <p class="font-semibold text-slate-900 text-xs">${escapeHTML(t.purpose)}</p>
+              ${t.clientName ? `<p class="text-[11px] text-indigo-600">${escapeHTML(t.clientName)}</p>` : ''}
+            </td>
+            <td class="py-3 px-4 text-right font-extrabold text-slate-900 whitespace-nowrap">
+              ${Number(t.distanceKm).toFixed(1)} km ${t.roundTrip ? '<span class="text-[10px] font-semibold text-indigo-600">(RT)</span>' : ''}
+            </td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="deleteRecord('trips', '${t.id}', 'trip')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `)
+        .join('');
+    }
+
+    function renderIncomeView() {
+      let yrIncome = filterByTaxYear(state.income, 'startDate').sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+      if (state.incomeFilter !== 'All') {
+        yrIncome = yrIncome.filter((i) => i.status === state.incomeFilter);
+      }
+
+      const tbody = document.getElementById('income-table-body');
+      if (!yrIncome.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-xs text-slate-400">No income entries match this filter for ${state.selectedYear}.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = yrIncome
+        .map((i) => {
+          const isPaid = i.status === 'Paid';
+          const dateLabel = i.endDate && i.endDate !== i.startDate ? `${i.startDate} → ${i.endDate}` : i.startDate;
+          return `
+            <tr class="hover:bg-slate-50">
+              <td class="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap">${escapeHTML(dateLabel)}</td>
+              <td class="py-3 px-4 font-bold text-slate-900">${escapeHTML(i.clientName)}</td>
+              <td class="py-3 px-4 text-slate-600">${escapeHTML(i.service)}</td>
+              <td class="py-3 px-4 text-xs text-slate-500">${escapeHTML(i.method)}</td>
+              <td class="py-3 px-4 text-right font-extrabold text-slate-900">${formatCurrency(i.amount)}</td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="toggleInvoiceStatus('${i.id}', '${i.status}')" class="px-3 py-1 rounded-full text-xs font-bold transition ${
+                  isPaid ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }">
+                  ${escapeHTML(i.status)}
+                </button>
+              </td>
+              <td class="py-3 px-4 text-right">
+                <button onclick="deleteRecord('income', '${i.id}', 'invoice')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+    }
+
+    function renderExpensesView() {
+      const yrExpenses = filterByTaxYear(state.expenses, 'date').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      // Category rollup
+      const catTotals = {};
+      yrExpenses.forEach((e) => {
+        catTotals[e.category] = (catTotals[e.category] || 0) + (Number(e.amount) || 0);
+      });
+      const catGrid = document.getElementById('expense-category-grid');
+      const entries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+      catGrid.innerHTML = entries
+        .map(([cat, total]) => `
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">${escapeHTML(cat)}</p>
+            <p class="text-lg font-extrabold text-slate-900 mt-1">${formatCurrency(total)}</p>
+          </div>
+        `)
+        .join('');
+
+      const filtered = state.expenseSearch
+        ? yrExpenses.filter((e) => (e.vendor || '').toLowerCase().includes(state.expenseSearch) || (e.notes || '').toLowerCase().includes(state.expenseSearch) || (e.category || '').toLowerCase().includes(state.expenseSearch))
+        : yrExpenses;
+
+      const tbody = document.getElementById('expenses-table-body');
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-xs text-slate-400">No expenses recorded for ${state.selectedYear}.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered
+        .map((e) => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 text-xs font-medium text-slate-700 whitespace-nowrap">${escapeHTML(e.date)}</td>
+            <td class="py-3 px-4 font-bold text-slate-900">${escapeHTML(e.vendor)}</td>
+            <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold">${escapeHTML(e.category)}</span></td>
+            <td class="py-3 px-4 text-xs text-slate-500 max-w-xs truncate">${escapeHTML(e.notes || '—')}</td>
+            <td class="py-3 px-4 text-right font-extrabold text-rose-600">${formatCurrency(e.amount)}</td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="deleteRecord('expenses', '${e.id}', 'expense')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `)
+        .join('');
+    }
+
+    function renderClientsView() {
+      const grid = document.getElementById('clients-grid');
+      if (!state.clients.length) {
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">No clients saved yet. Click <strong>Add New Client</strong> to build your directory.</div>`;
+        return;
+      }
+      const sorted = [...state.clients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      grid.innerHTML = sorted
+        .map((c) => {
+          const clientInvoices = state.income.filter((i) => i.clientId === c.id);
+          const owing = clientInvoices.filter((i) => i.status !== 'Paid').reduce((s, i) => s + (Number(i.amount) || 0), 0);
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs flex flex-col justify-between space-y-4">
+              <div>
+                <div class="flex items-start justify-between gap-2">
+                  <h4 class="font-bold text-slate-900 text-base">${escapeHTML(c.name)}</h4>
+                  ${owing > 0 ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Owes ${formatCurrency(owing)}</span>` : `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">Paid Up</span>`}
+                </div>
+                <div class="mt-3 space-y-1.5 text-xs text-slate-600">
+                  ${c.phone ? `<p class="flex items-center gap-2"><i data-lucide="phone" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.phone)}</p>` : ''}
+                  ${c.email ? `<p class="flex items-center gap-2"><i data-lucide="mail" class="w-3.5 h-3.5 text-slate-400"></i> ${escapeHTML(c.email)}</p>` : ''}
+                  ${c.address ? `<p class="flex items-start gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5"></i> <span>${escapeHTML(c.address)}</span></p>` : ''}
+                  ${c.notes ? `<p class="mt-2 p-2.5 rounded-xl bg-slate-50 text-slate-500 italic">${escapeHTML(c.notes)}</p>` : ''}
+                </div>
+              </div>
+              <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button onclick="openClientModal('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Edit</button>
+                <button onclick="deleteRecord('clients', '${c.id}', 'client')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50">Delete</button>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function renderCalendarView() {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      document.getElementById('cal-month-title').textContent = `${monthNames[state.calMonth]} ${state.calYear}`;
+
+      const firstDay = new Date(state.calYear, state.calMonth, 1).getDay();
+      const daysInMonth = new Date(state.calYear, state.calMonth + 1, 0).getDate();
+      const grid = document.getElementById('calendar-days-grid');
+
+      let html = '';
+      for (let i = 0; i < firstDay; i++) {
+        html += `<div class="h-14 sm:h-16 rounded-xl bg-slate-50/60"></div>`;
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const mm = String(state.calMonth + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const dateStr = `${state.calYear}-${mm}-${dd}`;
+        const isBlocked = Boolean(state.blockedDates[dateStr]);
+        const dayBookings = state.income.filter((inc) => dateStr >= inc.startDate && dateStr <= (inc.endDate || inc.startDate));
+        const isSelected = state.calSelectedDate === dateStr;
+
+        let cellStyle = 'bg-emerald-50/70 border-emerald-200 text-slate-800 hover:bg-emerald-100/70';
+        if (isBlocked) cellStyle = 'bg-rose-50 border-rose-300 text-rose-900';
+        else if (dayBookings.length > 0) cellStyle = 'bg-indigo-50 border-indigo-300 text-indigo-900';
+
+        html += `
+          <button type="button" onclick="selectCalendarDate('${dateStr}')" class="h-14 sm:h-16 p-1.5 rounded-xl border text-left flex flex-col justify-between transition ${cellStyle} ${isSelected ? 'ring-2 ring-slate-900' : ''}">
+            <span class="text-xs font-extrabold">${day}</span>
+            <div class="flex items-center gap-1">
+              ${dayBookings.length ? `<span class="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold truncate">${dayBookings.length} booked</span>` : ''}
+              ${isBlocked ? `<span class="px-1.5 py-0.5 rounded bg-rose-600 text-white text-[9px] font-bold">Off</span>` : ''}
+            </div>
+          </button>
+        `;
+      }
+      grid.innerHTML = html;
+
+      // Update selected date sidebar
+      const sel = state.calSelectedDate;
+      document.getElementById('cal-selected-date-label').textContent = sel;
+      const isSelBlocked = Boolean(state.blockedDates[sel]);
+      const selBookings = state.income.filter((inc) => sel >= inc.startDate && sel <= (inc.endDate || inc.startDate));
+
+      const statusPill = document.getElementById('cal-selected-status-pill');
+      const blockBtn = document.getElementById('cal-toggle-block-btn');
+      if (isSelBlocked) {
+        statusPill.textContent = 'Unavailable / Blocked';
+        statusPill.className = 'px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700';
+        blockBtn.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i><span>Mark Day Free / Available</span>`;
+        blockBtn.className = 'w-full py-2.5 px-4 rounded-xl text-sm font-semibold border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition flex items-center justify-center gap-2';
+      } else if (selBookings.length > 0) {
+        statusPill.textContent = `Booked (${selBookings.length})`;
+        statusPill.className = 'px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700';
+        blockBtn.innerHTML = `<i data-lucide="ban" class="w-4 h-4"></i><span>Mark Day Unavailable</span>`;
+        blockBtn.className = 'w-full py-2.5 px-4 rounded-xl text-sm font-semibold border border-slate-200 hover:bg-rose-50 hover:text-rose-700 transition flex items-center justify-center gap-2';
+      } else {
+        statusPill.textContent = 'Free / Available';
+        statusPill.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700';
+        blockBtn.innerHTML = `<i data-lucide="ban" class="w-4 h-4"></i><span>Mark Day Unavailable</span>`;
+        blockBtn.className = 'w-full py-2.5 px-4 rounded-xl text-sm font-semibold border border-slate-200 hover:bg-rose-50 hover:text-rose-700 transition flex items-center justify-center gap-2';
+      }
+
+      const bookingsContainer = document.getElementById('cal-day-bookings');
+      if (!selBookings.length) {
+        bookingsContainer.innerHTML = `<p class="text-xs text-slate-400">No bookings scheduled on this date.</p>`;
+      } else {
+        bookingsContainer.innerHTML = selBookings
+          .map((b) => `
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+              <p class="font-bold text-slate-900">${escapeHTML(b.clientName)}</p>
+              <p class="text-slate-600">${escapeHTML(b.service)} • <strong>${formatCurrency(b.amount)}</strong> (${escapeHTML(b.status)})</p>
+            </div>
+          `)
+          .join('');
+      }
+    }
+
+    window.selectCalendarDate = function(dateStr) {
+      state.calSelectedDate = dateStr;
+      renderCalendarView();
+      lucide.createIcons();
+    };
+
+    function renderTasksView() {
+      const openCount = state.tasks.filter((t) => !t.completed).length;
+      document.getElementById('tasks-summary-text').textContent = `${openCount} open task${openCount === 1 ? '' : 's'}`;
+
+      let list = [...state.tasks];
+      if (state.taskFilter === 'Open') list = list.filter((t) => !t.completed);
+      else if (state.taskFilter === 'Completed') list = list.filter((t) => t.completed);
+
+      const container = document.getElementById('tasks-list-container');
+      if (!list.length) {
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No tasks in this view.</div>`;
+        return;
+      }
+
+      const priorityColors = {
+        High: 'bg-rose-100 text-rose-700',
+        Medium: 'bg-amber-100 text-amber-800',
+        Low: 'bg-slate-100 text-slate-600'
+      };
+
+      container.innerHTML = list
+        .map((t) => `
+          <div class="p-4 flex items-center justify-between gap-3 hover:bg-slate-50">
+            <div class="flex items-center gap-3 min-w-0">
+              <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTaskCompleted('${t.id}', ${Boolean(t.completed)})" class="w-4 h-4 rounded text-indigo-600 cursor-pointer" />
+              <div class="min-w-0">
+                <p class="text-sm font-semibold ${t.completed ? 'line-through text-slate-400' : 'text-slate-900'} truncate">${escapeHTML(t.title)}</p>
+                <p class="text-xs text-slate-500">
+                  ${t.dueDate ? `Due: ${escapeHTML(t.dueDate)}` : 'No due date'}
+                  ${t.clientName ? ` • Client: <strong class="text-indigo-600">${escapeHTML(t.clientName)}</strong>` : ''}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${priorityColors[t.priority] || priorityColors.Medium}">${escapeHTML(t.priority || 'Medium')}</span>
+              <button onclick="deleteRecord('tasks', '${t.id}', 'task')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `)
+        .join('');
+    }
+
+    function renderAllViews() {
+      populateClientDropdowns();
+      renderDashboardView();
+      renderMileageView();
+      renderIncomeView();
+      renderExpensesView();
+      renderClientsView();
+      renderCalendarView();
+      renderTasksView();
+      lucide.createIcons();
+    }
+
+    // ==================== 12. YEAR-END TAX CSV EXPORTS ====================
     window.openExportModal = function() {
-      const yrLabel = state.selectedYear === 'ALL' ? 'All_Years' : state.selectedYear;
-      document.getElementById('export-year-badge').textContent = yrLabel;
-      document.querySelectorAll('.exp-yr-lbl').forEach(el => el.textContent = yrLabel);
+      document.getElementById('export-year-badge').textContent = state.selectedYear;
+      document.querySelectorAll('.exp-yr-lbl').forEach((el) => (el.textContent = state.selectedYear));
       document.getElementById('export-modal').classList.remove('hidden');
       lucide.createIcons();
     };
@@ -1651,102 +2473,79 @@
       document.getElementById('export-modal').classList.add('hidden');
     };
 
-    function csvCell(val) {
-      if (val === null || val === undefined) return '""';
-      const str = String(val).replace(/"/g, '""');
-      return `"${str}"`;
+    function csvEscape(val) {
+      const str = val === null || val === undefined ? '' : String(val);
+      return `"${str.replace(/"/g, '""')}"`;
     }
 
-    function toCSVRow(arr) {
-      return arr.map(csvCell).join(',');
-    }
-
-    function triggerDownload(filename, csvContent) {
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    function downloadCSVFile(filename, rows) {
+      const csvContent = rows.map((r) => r.map(csvEscape).join(',')).join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', filename);
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      showToast(`Downloaded ${filename}`);
     }
 
     window.exportCSV = function(type) {
-      const yrLabel = state.selectedYear === 'ALL' ? 'All_Years' : state.selectedYear;
+      const yr = state.selectedYear;
       const yrIncome = filterByTaxYear(state.income, 'startDate');
       const yrExpenses = filterByTaxYear(state.expenses, 'date');
-      const yrMileage = filterByTaxYear(state.mileage, 'date');
+      const yrTrips = filterByTaxYear(state.trips, 'date');
 
       if (type === 'income') {
-        const lines = [
-          toCSVRow(['Start Date', 'End Date', 'Client', 'Service Description', 'Amount ($)', 'Payment Status', 'Payment Method'])
-        ];
-        yrIncome.forEach(i => {
-          lines.push(toCSVRow([i.startDate, i.endDate || i.startDate, i.clientName, i.service, Number(i.amount || 0).toFixed(2), i.status, i.method]));
-        });
-        triggerDownload(`Income_Log_${yrLabel}.csv`, lines.join('\r\n'));
+        const rows = [['Start Date', 'End Date', 'Client', 'Service', 'Payment Method', 'Status', 'Amount ($)']];
+        yrIncome.forEach((i) => rows.push([i.startDate, i.endDate, i.clientName, i.service, i.method, i.status, Number(i.amount || 0).toFixed(2)]));
+        downloadCSVFile(`Income_Log_${yr}.csv`, rows);
       } else if (type === 'expenses') {
-        const lines = [
-          toCSVRow(['Date', 'Merchant / Vendor', 'Tax Category', 'Amount ($)', 'Notes'])
-        ];
-        yrExpenses.forEach(e => {
-          lines.push(toCSVRow([e.date, e.vendor, e.category, Number(e.amount || 0).toFixed(2), e.notes || '']));
-        });
-        triggerDownload(`Expenses_Log_${yrLabel}.csv`, lines.join('\r\n'));
+        const rows = [['Date', 'Vendor / Merchant', 'Category', 'Notes', 'Amount ($)']];
+        yrExpenses.forEach((e) => rows.push([e.date, e.vendor, e.category, e.notes, Number(e.amount || 0).toFixed(2)]));
+        downloadCSVFile(`Expenses_Log_${yr}.csv`, rows);
       } else if (type === 'mileage') {
-        const lines = [
-          toCSVRow(['Date', 'Start Address', 'Destination Address', 'Round Trip', 'Client', 'Business Purpose', 'Distance (KM)'])
+        const rows = [['Date', 'From Address', 'To Address', 'Client', 'Business Purpose', 'Round Trip', 'Distance (KM)']];
+        yrTrips.forEach((t) => rows.push([t.date, t.startAddress, t.destAddress, t.clientName, t.purpose, t.roundTrip ? 'Yes' : 'No', Number(t.distanceKm || 0).toFixed(1)]));
+        downloadCSVFile(`Mileage_Log_${yr}.csv`, rows);
+      } else {
+        const collected = yrIncome.filter((i) => i.status === 'Paid').reduce((s, i) => s + Number(i.amount || 0), 0);
+        const unpaid = yrIncome.filter((i) => i.status !== 'Paid').reduce((s, i) => s + Number(i.amount || 0), 0);
+        const expTotal = yrExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+        const totalKm = yrTrips.reduce((s, t) => s + Number(t.distanceKm || 0), 0);
+        const deduction = calculateMileageDeduction(totalKm);
+
+        const rows = [
+          [`BIZTRACK PRO — YEAR-END TAX SUMMARY (${yr})`],
+          ['Collected Income ($)', collected.toFixed(2)],
+          ['Unpaid Invoices ($)', unpaid.toFixed(2)],
+          ['Total Expenses ($)', expTotal.toFixed(2)],
+          ['Net Profit ($)', (collected - expTotal).toFixed(2)],
+          ['Total Business KMs', totalKm.toFixed(1)],
+          ['Estimated CRA Mileage Deduction ($)', deduction.toFixed(2)],
+          [],
+          ['=== INCOME LOG ==='],
+          ['Start Date', 'End Date', 'Client', 'Service', 'Method', 'Status', 'Amount ($)'],
+          ...yrIncome.map((i) => [i.startDate, i.endDate, i.clientName, i.service, i.method, i.status, Number(i.amount || 0).toFixed(2)]),
+          [],
+          ['=== EXPENSES LOG ==='],
+          ['Date', 'Vendor', 'Category', 'Notes', 'Amount ($)'],
+          ...yrExpenses.map((e) => [e.date, e.vendor, e.category, e.notes, Number(e.amount || 0).toFixed(2)]),
+          [],
+          ['=== MILEAGE LOG ==='],
+          ['Date', 'From', 'To', 'Client', 'Purpose', 'Round Trip', 'Distance (KM)'],
+          ...yrTrips.map((t) => [t.date, t.startAddress, t.destAddress, t.clientName, t.purpose, t.roundTrip ? 'Yes' : 'No', Number(t.distanceKm || 0).toFixed(1)])
         ];
-        yrMileage.forEach(m => {
-          lines.push(toCSVRow([m.date, m.startAddress, m.destAddress, m.roundTrip ? 'Yes' : 'No', m.clientName || '', m.purpose, Number(m.distanceKm || 0).toFixed(1)]));
-        });
-        triggerDownload(`Mileage_Log_${yrLabel}.csv`, lines.join('\r\n'));
-      } else if (type === 'full') {
-        const paidTotal = yrIncome.filter(i => i.status === 'Paid').reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
-        const unpaidTotal = yrIncome.filter(i => i.status !== 'Paid').reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
-        const expTotal = yrExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-        const totalKm = yrMileage.reduce((s, m) => s + (parseFloat(m.distanceKm) || 0), 0);
-        const kmDeduction = calculateMileageDeduction(totalKm);
-        const netIncome = paidTotal - expTotal;
-
-        const lines = [
-          toCSVRow(['BIZTRACK PRO — YEAR-END TAX SUMMARY', `Tax Period: ${yrLabel}`]),
-          toCSVRow(['Generated On', todayStr]),
-          '',
-          toCSVRow(['SUMMARY METRIC', 'VALUE']),
-          toCSVRow(['Total Collected Income (Paid)', paidTotal.toFixed(2)]),
-          toCSVRow(['Outstanding / Unpaid Invoices', unpaidTotal.toFixed(2)]),
-          toCSVRow(['Total Business Expenses', expTotal.toFixed(2)]),
-          toCSVRow(['Net Business Income (Collected - Expenses)', netIncome.toFixed(2)]),
-          toCSVRow(['Total Business Kilometers Driven (KM)', totalKm.toFixed(1)]),
-          toCSVRow([`Estimated Mileage Tax Deduction ($${state.settings.tier1Rate}/km first 5k, $${state.settings.tier2Rate}/km after)`, kmDeduction.toFixed(2)]),
-          '',
-          toCSVRow(['--- SECTION 1: INCOME & INVOICES ---']),
-          toCSVRow(['Start Date', 'End Date', 'Client', 'Service Description', 'Amount ($)', 'Payment Status', 'Payment Method'])
-        ];
-        yrIncome.forEach(i => {
-          lines.push(toCSVRow([i.startDate, i.endDate || i.startDate, i.clientName, i.service, Number(i.amount || 0).toFixed(2), i.status, i.method]));
-        });
-
-        lines.push('', toCSVRow(['--- SECTION 2: BUSINESS EXPENSES ---']));
-        lines.push(toCSVRow(['Date', 'Merchant / Vendor', 'Tax Category', 'Amount ($)', 'Notes']));
-        yrExpenses.forEach(e => {
-          lines.push(toCSVRow([e.date, e.vendor, e.category, Number(e.amount || 0).toFixed(2), e.notes || '']));
-        });
-
-        lines.push('', toCSVRow(['--- SECTION 3: BUSINESS MILEAGE LOG ---']));
-        lines.push(toCSVRow(['Date', 'Start Address', 'Destination Address', 'Round Trip', 'Client', 'Business Purpose', 'Distance (KM)']));
-        yrMileage.forEach(m => {
-          lines.push(toCSVRow([m.date, m.startAddress, m.destAddress, m.roundTrip ? 'Yes' : 'No', m.clientName || '', m.purpose, Number(m.distanceKm || 0).toFixed(1)]));
-        });
-
-        triggerDownload(`Full_Tax_Summary_${yrLabel}.csv`, lines.join('\r\n'));
+        downloadCSVFile(`Full_Tax_Summary_${yr}.csv`, rows);
       }
       closeExportModal();
+      showToast(`Exported ${yr} CSV file!`);
     };
+
+    // ==================== 13. INITIALIZE UI ====================
+    initYearSelectors();
+    switchTab('dashboard');
   </script>
 </body>
 </html>
