@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BizTrack Pro — Free Small Business, Mileage & Tax Tracker</title>
+  <title>MileBill — Mileage Tracking &amp; Invoicing for Small Business</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter -->
@@ -145,8 +145,8 @@
               <i data-lucide="briefcase" class="w-6 h-6"></i>
             </div>
             <div>
-              <h2 class="text-xl font-bold text-slate-900">BizTrack Pro</h2>
-              <p class="text-xs text-slate-500">Cloud-Synced Business Ledger</p>
+              <h2 class="text-xl font-bold text-slate-900">MileBill</h2>
+              <p class="text-xs text-slate-500">Mileage &amp; Invoicing Ledger</p>
             </div>
           </div>
 
@@ -202,7 +202,7 @@
           <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
             <i data-lucide="briefcase" class="w-4 h-4"></i>
           </div>
-          <span class="font-bold text-slate-900 text-base">BizTrack Pro</span>
+          <span class="font-bold text-slate-900 text-base">MileBill</span>
         </div>
       </div>
 
@@ -228,7 +228,7 @@
               <i data-lucide="briefcase" class="w-5 h-5"></i>
             </div>
             <div>
-              <h1 class="font-extrabold text-slate-900 text-lg leading-none">BizTrack Pro</h1>
+              <h1 class="font-extrabold text-slate-900 text-lg leading-none">MileBill</h1>
               <span class="text-[11px] font-medium text-emerald-600 flex items-center gap-1 mt-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Cloud Synced
               </span>
@@ -1476,7 +1476,7 @@
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <h3 class="text-xl font-extrabold text-slate-900 mt-4">Upgrade to BizTrack Pro</h3>
+      <h3 class="text-xl font-extrabold text-slate-900 mt-4">Upgrade to MileBill Pro</h3>
       <p id="upgrade-modal-sub" class="text-xs text-slate-600 mt-1.5 leading-relaxed">
         You've reached your monthly Starter Free allowance. Upgrade to Pro for unlimited bookings, automatic map mileage, receipt photos &amp; year-end tax CSV exports.
       </p>
@@ -3823,7 +3823,7 @@
         const expTotal = yrExpenses.reduce((s, e) => s + Number(e.amount || 0), 0);
         const totalKm = yrTrips.reduce((s, t) => s + Number(t.distanceKm || 0), 0);
         download(`Full_Tax_Summary_${yr}.csv`, [
-          [`BIZTRACK PRO — YEAR-END TAX SUMMARY (${yr})`],
+          [`MILEBILL — YEAR-END TAX SUMMARY (${yr})`],
           ['Collected Income ($)', collected.toFixed(2)],
           ['Total Expenses ($)', expTotal.toFixed(2)],
           ['Net Profit ($)', (collected - expTotal).toFixed(2)],
