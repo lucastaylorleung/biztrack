@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MileBill — Mileage Tracking &amp; Invoicing for Small Business</title>
+  <!-- Browser Tab Car Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234f46e5'/%3E%3Cpath fill='%23ffffff' d='M18 18h28c2.6 0 4.8 1.6 5.6 4l3.4 10v14c0 1.7-1.3 3-3 3h-3c-1.7 0-3-1.3-3-3v-3H18v3c0 1.7-1.3 3-3 3h-3c-1.7 0-3-1.3-3-3V32l3.4-10c.8-2.4 3-4 5.6-4zm1.5 5-2.3 7h29.6l-2.3-7h-25zM18.5 39a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm27 0a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z'/%3E%3C/svg%3E" />
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter -->
@@ -72,7 +74,7 @@
   <!-- ==================== LOADING SPLASH SCREEN ==================== -->
   <div id="auth-loading-screen" class="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6">
     <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200 mb-4 animate-pulse">
-      <i data-lucide="briefcase" class="w-6 h-6"></i>
+      <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current" aria-hidden="true"><path d="M5.5 5h13c1.3 0 2.4.8 2.8 2l1.7 5v7c0 .8-.7 1.5-1.5 1.5H20c-.8 0-1.5-.7-1.5-1.5v-1.5h-13V19c0 .8-.7 1.5-1.5 1.5H2.5C1.7 20.5 1 19.8 1 19v-7l1.7-5c.4-1.2 1.5-2 2.8-2zm.8 2.5-1.2 3.5h13.8l-1.2-3.5H6.3zM6.5 16a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5zm11 0a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5z"/></svg>
     </div>
     <p class="text-sm font-medium text-slate-600">Connecting securely to your workspace...</p>
   </div>
@@ -142,7 +144,7 @@
         <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/70 border border-slate-200 p-8">
           <div class="flex items-center gap-3 mb-6">
             <div class="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200">
-              <i data-lucide="briefcase" class="w-6 h-6"></i>
+              <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current" aria-hidden="true"><path d="M5.5 5h13c1.3 0 2.4.8 2.8 2l1.7 5v7c0 .8-.7 1.5-1.5 1.5H20c-.8 0-1.5-.7-1.5-1.5v-1.5h-13V19c0 .8-.7 1.5-1.5 1.5H2.5C1.7 20.5 1 19.8 1 19v-7l1.7-5c.4-1.2 1.5-2 2.8-2zm.8 2.5-1.2 3.5h13.8l-1.2-3.5H6.3zM6.5 16a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5zm11 0a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5z"/></svg>
             </div>
             <div>
               <h2 class="text-xl font-bold text-slate-900">MileBill</h2>
@@ -200,7 +202,7 @@
         </button>
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
-            <i data-lucide="briefcase" class="w-4 h-4"></i>
+            <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M5.5 5h13c1.3 0 2.4.8 2.8 2l1.7 5v7c0 .8-.7 1.5-1.5 1.5H20c-.8 0-1.5-.7-1.5-1.5v-1.5h-13V19c0 .8-.7 1.5-1.5 1.5H2.5C1.7 20.5 1 19.8 1 19v-7l1.7-5c.4-1.2 1.5-2 2.8-2zm.8 2.5-1.2 3.5h13.8l-1.2-3.5H6.3zM6.5 16a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5zm11 0a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5z"/></svg>
           </div>
           <span class="font-bold text-slate-900 text-base">MileBill</span>
         </div>
@@ -225,7 +227,7 @@
         <div class="p-6 flex items-center justify-between border-b border-slate-100">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200">
-              <i data-lucide="briefcase" class="w-5 h-5"></i>
+              <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current" aria-hidden="true"><path d="M5.5 5h13c1.3 0 2.4.8 2.8 2l1.7 5v7c0 .8-.7 1.5-1.5 1.5H20c-.8 0-1.5-.7-1.5-1.5v-1.5h-13V19c0 .8-.7 1.5-1.5 1.5H2.5C1.7 20.5 1 19.8 1 19v-7l1.7-5c.4-1.2 1.5-2 2.8-2zm.8 2.5-1.2 3.5h13.8l-1.2-3.5H6.3zM6.5 16a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5zm11 0a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5z"/></svg>
             </div>
             <div>
               <h1 class="font-extrabold text-slate-900 text-lg leading-none">MileBill</h1>
